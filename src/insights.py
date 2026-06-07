@@ -191,14 +191,11 @@ def compare_with_official(
 
     agg = df.groupby(group_cols, dropna=False).agg(
         Budget_FY=("Budget_FY", "sum"),
-        Real_YTD=("Forecast_5+7", lambda x: x.index.map(
-            lambda i: df.loc[i, ["Jan-25", "Feb-25", "Mar-25", "Apr-25", "May-25"]].sum()
-        ).sum() if len(x) > 0 else 0),
         Forecast_Oficial=("Forecast_FY_Oficial", "sum"),
         Forecast_5plus7=("Forecast_5+7", "sum"),
     ).reset_index()
 
-    # Simplificar: calcular Real_YTD desde las columnas mensuales
+    # Calcular Real_YTD desde las columnas mensuales
     real_cols = ["Jan-25", "Feb-25", "Mar-25", "Apr-25", "May-25"]
     real_agg = df.groupby(group_cols, dropna=False)[real_cols].sum().sum(axis=1)
     agg["Real_YTD"] = real_agg.values

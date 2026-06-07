@@ -34,6 +34,16 @@ from src.insights import (
     top_deviations,
     compare_with_official,
 )
+from src.model_store import (
+    cache_exists,
+    load_backtesting_results,
+    load_forecast,
+    load_metadata,
+    save_backtesting_results,
+    save_forecast,
+    save_metadata,
+    clear_cache,
+)
 from src.viz import (
     format_currency,
     plot_monthly_trend,
@@ -68,35 +78,81 @@ def cargar_datos():
     return forecast_df, budget_df, grupos_df, pivot_df, forecast_merged, budget_merged
 
 
-@st.cache_data(show_spinner="Ejecutando backtesting...")
-def ejecutar_backtesting(_forecast_df, _budget_df):
-    """Ejecuta backtesting de metodos (cacheado)."""
-    return run_backtesting(_forecast_df, _budget_df)
-
-
-@st.cache_data(show_spinner="Generando Forecast 5+7...")
-def generar_forecast(_forecast_df, _budget_df, metodo):
-    """Genera el forecast completo con el metodo seleccionado."""
-    return project_full_forecast(_forecast_df, _budget_df, method=metodo)
-
-
 # ============================================================================
-# Carga inicial
+# Carga inicial con soporte de cache en disco
 # ============================================================================
 
 with st.spinner("Cargando datos del workbook..."):
     forecast_df, budget_df, grupos_df, pivot_df, forecast_merged, budget_merged = cargar_datos()
 
-with st.spinner("Ejecutando backtesting de metodos..."):
-    resultados_backtesting = ejecutar_backtesting(forecast_df, budget_df)
+# Inicializar estado de sesion para modelos
+if "modelos_ejecutados" not in st.session_state:
+    st.session_state.modelos_ejecutados = False
+if "resultados_backtesting" not in st.session_state:
+    st.session_state.resultados_backtesting = None
+if "forecast_lines" not in st.session_state:
+    st.session_state.forecast_lines = None
+if "metodo_ganador" not in st.session_state:
+    st.session_state.metodo_ganador = None
+if "kpis" not in st.session_state:
+    st.session_state.kpis = None
 
-metodo_ganador = select_best_method(resultados_backtesting, "rmse_mean")
+# Intentar cargar desde cache en disco
+if cache_exists() and not st.session_state.modelos_ejecutados:
+    cached_bt = load_backtesting_results()
+    cached_fc = load_forecast()
+    cached_meta = load_metadata()
+    if cached_bt is not None and cached_fc is not None and cached_meta is not None:
+        st.session_state.resultados_backtesting = cached_bt
+        st.session_state.forecast_lines = cached_fc
+        st.session_state.metodo_ganador = cached_meta.get("best_method", "budget_scaled")
+        st.session_state.kpis = cached_meta.get("kpis", {})
+        st.session_state.modelos_ejecutados = True
 
-with st.spinner(f"Generando Forecast 5+7 con metodo: {metodo_ganador}..."):
-    forecast_lines = generar_forecast(forecast_df, budget_df, metodo_ganador)
+# Si aun no hay modelos, mostrar boton para ejecutar
+if not st.session_state.modelos_ejecutados:
+    st.warning(
+        "No se encontraron modelos previamente ejecutados. "
+        "Haga clic en el boton para ejecutar el backtesting y generar el Forecast 5+7."
+    )
+    if st.button("Ejecutar Modelos (Backtesting + Forecast)", type="primary", use_container_width=True):
+        with st.spinner("Ejecutando backtesting de metodos (esto puede tardar ~60s)..."):
+            st.session_state.resultados_backtesting = run_backtesting(forecast_df, budget_df)
+
+        st.session_state.metodo_ganador = select_best_method(
+            st.session_state.resultados_backtesting, "rmse_mean"
+        )
+
+        with st.spinner(f"Generando Forecast 5+7 con metodo: {st.session_state.metodo_ganador}..."):
+            st.session_state.forecast_lines = project_full_forecast(
+                forecast_df, budget_df, method=st.session_state.metodo_ganador
+            )
+
+        st.session_state.kpis = compute_kpis(st.session_state.forecast_lines, forecast_df)
+
+        # Guardar a disco
+        save_backtesting_results(st.session_state.resultados_backtesting)
+        save_forecast(st.session_state.forecast_lines)
+        save_metadata(st.session_state.metodo_ganador, st.session_state.kpis)
+        st.session_state.modelos_ejecutados = True
+        st.rerun()
+
+    # Mostrar sidebar reducido mientras no haya modelos
+    st.sidebar.title("⛏ Forecast 5+7")
+    st.sidebar.info("Ejecute los modelos para ver los resultados.")
+    st.stop()
+
+
+# ============================================================================
+# Modelos ya cargados -- mostrar boton de re-ejecucion y continuar
+# ============================================================================
+
+resultados_backtesting = st.session_state.resultados_backtesting
+forecast_lines = st.session_state.forecast_lines
+metodo_ganador = st.session_state.metodo_ganador
+kpis = st.session_state.kpis
 
 deviation_df = compute_deviations(forecast_lines, compare_vs_official=True)
-kpis = compute_kpis(forecast_lines, forecast_df)
 
 # Agregados por dimension
 agg_vp = aggregate_forecast(forecast_lines, ["VP"])
@@ -134,6 +190,12 @@ metodo_seleccionado = st.sidebar.selectbox(
 
 st.sidebar.markdown("---")
 st.sidebar.caption(f"Metodo ganador (RMSE): **{metodo_ganador}**")
+
+# Boton para re-ejecutar modelos
+if st.sidebar.button("Re-ejecutar Modelos", use_container_width=True):
+    clear_cache()
+    st.session_state.modelos_ejecutados = False
+    st.rerun()
 
 
 def filtrar_dataframe(df: pd.DataFrame) -> pd.DataFrame:
@@ -225,7 +287,7 @@ with tabs[0]:
             title="",
             color_col="Var_Pct",
         )
-        st.plotly_chart(fig_treemap, use_container_width=True)
+        st.plotly_chart(fig_treemap, use_container_width=True, key="treemap_resumen")
 
     with col_b:
         st.subheader("Forecast 5+7 vs Budget por VP")
@@ -237,7 +299,7 @@ with tabs[0]:
             title="",
             top_n=10,
         )
-        st.plotly_chart(fig_barras, use_container_width=True)
+        st.plotly_chart(fig_barras, use_container_width=True, key="barras_vp_resumen")
 
     st.markdown("---")
     st.subheader("Waterfall: Budget FY a Forecast 5+7")
@@ -250,7 +312,7 @@ with tabs[0]:
         kpis_f["Forecast_5plus7_Total"],
         deviations=devs,
     )
-    st.plotly_chart(fig_waterfall, use_container_width=True)
+    st.plotly_chart(fig_waterfall, use_container_width=True, key="waterfall_resumen")
 
 # --------------------------------------------------------------------------
 # Tab 2: Analisis por Dimension
@@ -265,7 +327,7 @@ with tabs[1]:
     with dim_tabs[0]:
         st.subheader("Forecast 5+7 por Vicepresidencia")
         fig_vp = plot_bar_comparison(agg_vp, "VP", title="")
-        st.plotly_chart(fig_vp, use_container_width=True)
+        st.plotly_chart(fig_vp, use_container_width=True, key="barras_vp_dim")
         st.dataframe(
             agg_vp[["VP", "Forecast_5+7", "Budget_FY", "Var_Abs", "Var_Pct"]]
             .sort_values("Forecast_5+7", ascending=False),
@@ -285,7 +347,7 @@ with tabs[1]:
         fig_ger = plot_bar_comparison(
             top_ger, "Gerencia", title="",
         )
-        st.plotly_chart(fig_ger, use_container_width=True)
+        st.plotly_chart(fig_ger, use_container_width=True, key="barras_gerencia_dim")
         st.dataframe(
             agg_gerencia_f.sort_values("Forecast_5+7", ascending=False),
             use_container_width=True,
@@ -301,7 +363,7 @@ with tabs[1]:
     with dim_tabs[2]:
         st.subheader("Forecast 5+7 por Clasificacion (Classif)")
         fig_classif = plot_bar_comparison(agg_classif_f, "Classif", title="")
-        st.plotly_chart(fig_classif, use_container_width=True)
+        st.plotly_chart(fig_classif, use_container_width=True, key="barras_classif_dim")
         st.dataframe(
             agg_classif_f[["Classif", "Forecast_5+7", "Budget_FY", "Var_Abs", "Var_Pct"]]
             .sort_values("Forecast_5+7", ascending=False),
@@ -320,7 +382,7 @@ with tabs[1]:
         if "CLASS" in forecast_lines_f.columns:
             agg_class_group = aggregate_forecast(forecast_lines_f, ["CLASS"])
             fig_classg = plot_bar_comparison(agg_class_group, "CLASS", title="")
-            st.plotly_chart(fig_classg, use_container_width=True)
+            st.plotly_chart(fig_classg, use_container_width=True, key="barras_classg_dim")
         else:
             st.info("Columna CLASS no disponible en los datos filtrados.")
 
@@ -335,7 +397,7 @@ with tabs[1]:
             title="",
             n=20,
         )
-        st.plotly_chart(fig_top, use_container_width=True)
+        st.plotly_chart(fig_top, use_container_width=True, key="topdev_dim")
 
 # --------------------------------------------------------------------------
 # Tab 3: Tendencia Mensual
@@ -379,7 +441,7 @@ with tabs[2]:
             official_series=official_monthly,
             title="",
         )
-        st.plotly_chart(fig_trend, use_container_width=True)
+        st.plotly_chart(fig_trend, use_container_width=True, key="tendencia_mensual")
 
         # Tabla de detalle mensual
         st.subheader("Detalle Mensual")
@@ -430,7 +492,7 @@ with tabs[3]:
     st.subheader("Comparacion Visual de Metodos")
     metrica_viz = st.selectbox("Metrica", ["rmse_mean", "mape_median", "mae_mean"])
     fig_comp = plot_method_comparison(resultados_backtesting, metric=metrica_viz)
-    st.plotly_chart(fig_comp, use_container_width=True)
+    st.plotly_chart(fig_comp, use_container_width=True, key="metodo_comparacion")
 
     st.markdown("---")
     st.subheader("Justificacion de la Eleccion")
@@ -503,7 +565,7 @@ with tabs[4]:
             forecast_col="Forecast_5plus7",
             title="",
         )
-        st.plotly_chart(fig_comp1, use_container_width=True)
+        st.plotly_chart(fig_comp1, use_container_width=True, key="comp_5plus7_vs_budget")
 
     with col_c2:
         st.markdown("**Forecast 5+7 vs Forecast Oficial**")
@@ -514,7 +576,7 @@ with tabs[4]:
             forecast_col="Forecast_5plus7",
             title="",
         )
-        st.plotly_chart(fig_comp2, use_container_width=True)
+        st.plotly_chart(fig_comp2, use_container_width=True, key="comp_5plus7_vs_oficial")
 
     st.subheader("Tabla Comparativa")
     comp_df["Var_5plus7_vs_Budget_Pct"] = np.where(
@@ -550,7 +612,7 @@ with tabs[4]:
         title="",
         n=20,
     )
-    st.plotly_chart(fig_topdev, use_container_width=True)
+    st.plotly_chart(fig_topdev, use_container_width=True, key="topdev_comp")
 
 # --------------------------------------------------------------------------
 # Tab 6: Hallazgos y Propuesta de Mejora
