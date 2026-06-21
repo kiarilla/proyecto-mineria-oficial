@@ -744,3 +744,92 @@ with tabs[6]:
     st.markdown("---")
     st.subheader("Resultados de Backtesting")
     st.dataframe(resultados_backtesting, use_container_width=True, hide_index=True)
+
+# --------------------------------------------------------------------------
+# Tab 8: Budget 2027-2031
+# --------------------------------------------------------------------------
+with tabs[7]:
+    st.title("Budget 2027-2031")
+
+    st.markdown(
+        "Proyección presupuestaria basada en los valores históricos del Budget."
+    )
+
+    tasa_crecimiento = st.slider(
+        "Tasa de crecimiento anual (%)",
+        min_value=0.0,
+        max_value=20.0,
+        value=5.0,
+        step=0.5,
+    )
+
+    tasa = tasa_crecimiento / 100
+
+    if "Budget_FY" in forecast_lines_f.columns:
+
+        budget_base = forecast_lines_f["Budget_FY"].sum()
+
+        budget_2027 = budget_base * (1 + tasa)
+        budget_2028 = budget_2027 * (1 + tasa)
+        budget_2029 = budget_2028 * (1 + tasa)
+        budget_2030 = budget_2029 * (1 + tasa)
+        budget_2031 = budget_2030 * (1 + tasa)
+
+        budget_df = pd.DataFrame({
+            "Año": [2027, 2028, 2029, 2030, 2031],
+            "Budget": [
+                budget_2027,
+                budget_2028,
+                budget_2029,
+                budget_2030,
+                budget_2031,
+            ]
+        })
+
+        st.subheader("Proyección Budget")
+
+        st.dataframe(
+            budget_df,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric(
+                "Budget FY27",
+                format_currency(budget_2027)
+            )
+
+        with col2:
+            st.metric(
+                "Budget FY29",
+                format_currency(budget_2029)
+            )
+
+        with col3:
+            st.metric(
+                "Budget FY31",
+                format_currency(budget_2031)
+            )
+
+        import plotly.express as px
+
+        fig = px.line(
+            budget_df,
+            x="Año",
+            y="Budget",
+            markers=True,
+            title="Evolución Budget 2027-2031"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    else:
+        st.warning(
+            "No se encontró la columna Budget_FY para generar el Budget."
+        )
