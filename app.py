@@ -834,7 +834,7 @@ with tabs[7]:
             "No se encontró la columna Budget_FY para generar el Budget."
         )
 
-from pdf_generator import generar_pdf
+from src.pdf_generator import generar_pdf
 import streamlit as st
 
 # df ya cargado en tu app
