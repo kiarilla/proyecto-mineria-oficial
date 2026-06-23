@@ -997,7 +997,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         st.download_button("Descargar Reporte Quinquenal Excel", data=output_excel.getvalue(), file_name="Planificacion_Estrategica_Visual.xlsx", use_container_width=True)
 
     # ------------------------------------------------------------------------
-    # PESTAÑA: MOTOR DE REPORTE EJECUTIVO PDF TOTALMENTE CORREGIDO
+    # PESTAÑA: MOTOR DE REPORTE EJECUTIVO PDF - FECHA CHILE Y CLASIFF REALES
     # ------------------------------------------------------------------------
     with tab_est4:
         st.subheader("📄 Generador de Reporte PDF Corporativo en Tiempo Real")
@@ -1009,6 +1009,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         from reportlab.lib import colors
         from io import BytesIO
         from datetime import datetime
+        import zoneinfo  # Para asegurar la zona horaria de Chile de forma exacta
 
         def generar_pdf_ejecutivo():
             buffer = BytesIO()
@@ -1041,10 +1042,15 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 'BoldCorp', parent=body_style, fontName='Helvetica-Bold'
             )
             
-            # --- CAPTURA DINÁMICA DE FECHA Y HORA AL INSTANTE ---
-            ahora = datetime.now()
-            fecha_viva = ahora.strftime("%d/%m/%Y")
-            hora_viva = ahora.strftime("%H:%M")
+            # --- CAPTURA DE FECHA EN TIEMPO REAL FORZANDO HORARIO DE CHILE ---
+            try:
+                tz_chile = zoneinfo.ZoneInfo("America/Santiago")
+                ahora_chile = datetime.now(tz_chile)
+            except Exception:
+                # Fallback por si el sistema operativo base no tiene cargada la db de zonas
+                ahora_chile = datetime.now()
+                
+            fecha_viva = ahora_chile.strftime("%d/%m/%Y")
             
             # --- DETERMINACIÓN DE CLASIFICACIONES DE REPRESENTACIÓN REAL (DEL GRÁFICO) ---
             if not df_final_proy.empty and 'Classif' in df_final_proy.columns:
@@ -1064,8 +1070,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             
             info_data = [
                 [Paragraph("<b>Preparado Para:</b>", body_style), Paragraph("Comité de Finanzas y Operaciones", body_style)],
-                [Paragraph("<b>Fecha de Emisión:</b>", body_style), Paragraph(fecha_viva, body_style)],
-                [Paragraph("<b>Hora de Emisión:</b>", body_style), Paragraph(hora_viva, body_style)],
+                [Paragraph("<b>Fecha de Emisión (Chile):</b>", body_style), Paragraph(fecha_viva, body_style)],
                 [Paragraph("<b>Escenario Aplicado:</b>", body_style), Paragraph(f"{escenario}", bold_body)]
             ]
             t_info = Table(info_data, colWidths=[140, 360])
@@ -1088,7 +1093,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             alcance_data = [
                 [Paragraph("<b>Vicepresidencias (VPs):</b>", body_style), Paragraph(vps_txt, body_style)],
                 [Paragraph("<b>Gerencias Afectadas:</b>", body_style), Paragraph(gerencias_txt, body_style)],
-                [Paragraph("<b>Clasificaciones / Cuentas:</b>", body_style), Paragraph(classif_txt, body_style)]
+                [Paragraph("<b>Clasificaciones / Cuentas Reales:</b>", body_style), Paragraph(classif_txt, body_style)]
             ]
             t_alcance = Table(alcance_data, colWidths=[140, 360])
             t_alcance.setStyle(TableStyle([
