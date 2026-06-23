@@ -905,7 +905,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         st.plotly_chart(fig_barras, use_container_width=True)
 
         # --------------------------------------------------------------------
-        # NUEVO GRÁFICO: TOTALES GLOBALES POR AÑO (SIN CLASIFICACIÓN)
+        # GRÁFICO ACTUALIZADO: TOTALES GLOBALES POR AÑO (CON COLORES DIFERENTES)
         # --------------------------------------------------------------------
         st.markdown("#### 📊 Presupuesto Total Consolidado Quinquenal")
         st.markdown("Muestra el monto total global por cada año simulado, sensible a los parámetros del panel operativo.")
@@ -916,9 +916,10 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             df_total_por_anio,
             x="Año",
             y="Monto",
+            color="Año",  # <-- Hace que cada barra tenga un color distinto según el año
             text="Monto",
             title="Evolución del Costo Total Global Consolidado (2027-2031)",
-            color_discrete_sequence=["#2b2d42"]
+            color_discrete_sequence=px.colors.qualitative.Dark24 # Paleta de colores variada y distinguible
         )
         fig_totales_globales.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
         fig_totales_globales.update_layout(
@@ -926,7 +927,8 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             yaxis_title="Monto Neto General ($)",
             yaxis_tickformat="$,.0f",
             margin=dict(t=50, b=50),
-            height=450
+            height=450,
+            showlegend=False # Ocultamos la leyenda ya que el eje X ya dice claramente los años
         )
         st.plotly_chart(fig_totales_globales, use_container_width=True, key="grafico_barras_totales_globales")
 
