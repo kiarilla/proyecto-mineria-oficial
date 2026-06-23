@@ -58,7 +58,7 @@ from src.viz import (
 
 # Configuración inicial de la página
 st.set_page_config(
-    page_title="Forecast 5+7 - Minera",
+    page_title="Centro de análisis operativo- Minera",
     page_icon="⛏",
     layout="wide",
     initial_sidebar_state="expanded",
