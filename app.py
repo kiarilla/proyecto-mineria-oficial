@@ -989,3 +989,161 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
+    # ============================================================================
+# ============================================================================
+# MÓDULO 2: PROYECCIÓN ESTRATÉGICA (AÑO BASE VS PROYECTADO CON SENSIBILIDAD)
+# ============================================================================
+# ============================================================================
+elif app_mode == "📈 Proyección Estratégica (2027-2031)":
+    st.title("📈 Planificación Quinquenal y Proyección Estratégica")
+    st.markdown("Módulo de modelamiento de escenarios a largo plazo con parámetros de sensibilidad dinámicos.")
+
+    # 1. Sidebar específico para Análisis de Sensibilidad y Selección de Años
+    st.sidebar.title("🎛️ Parámetros de Simulación")
+    
+    # Intentamos identificar qué columnas de años (FYXX) están presentes en las tablas cargadas
+    columnas_disponibles = [col for col in budget_merged.columns if str(col).startswith("FY")]
+    if not columnas_disponibles:
+        # Años por defecto en caso de no encontrarlos dinámicamente
+        columnas_disponibles = ["FY24", "FY25", "FY26", "FY27", "FY28", "FY29", "FY30"]
+    
+    st.sidebar.markdown("### 📅 Selección de Períodos")
+    anio_base = st.sidebar.selectbox(
+        "Seleccione el Año Base (Real / Presupuesto)", 
+        columnas_disponibles, 
+        index=0
+    )
+    
+    # Filtrar para que el año proyectado idealmente sea posterior o diferente
+    opciones_proyeccion = [col for col in columnas_disponibles if col != anio_base]
+    if not opciones_proyeccion:
+        opciones_proyeccion = columnas_disponibles
+
+    anio_proyectado_target = st.sidebar.selectbox(
+        "Seleccione el Año Proyectado Objetivo", 
+        opciones_proyeccion, 
+        index=min(2, len(opciones_proyeccion)-1)
+    )
+
+    st.sidebar.markdown("### ⚡ Factor de Ajuste")
+    factor_sensibilidad = st.sidebar.slider(
+        "Parámetro de Sensibilidad OPEX (%)", 
+        min_value=-50.0, 
+        max_value=50.0, 
+        value=0.0, 
+        step=0.5,
+        help="Aplica un porcentaje multiplicador de aumento o reducción de costos sobre el año base para simular el escenario futuro."
+    )
+
+    # 2. Función interna de filtrado para el Módulo 2
+    def filtrar_estrategico(df: pd.DataFrame) -> pd.DataFrame:
+        """Aplica los filtros globales del sidebar superior al dataframe estratégico."""
+        if vp_seleccionada != "Todas" and "VP" in df.columns:
+            df = df[df["VP"] == vp_seleccionada]
+        if classif_seleccionada != "Todas" and "Classif" in df.columns:
+            df = df[df["Classif"] == classif_seleccionada]
+        if class_seleccionada != "Todas" and "CLASS" in df.columns:
+            df = df[df["CLASS"] == class_seleccionada]
+        return df
+
+    # Filtramos la matriz maestra unificada
+    data_estrategica_f = filtrar_estrategico(budget_merged.copy())
+
+    if data_estrategica_f.empty:
+        st.warning("⚠️ No existen registros que coincidan con los filtros globales seleccionados (VP, Clasificación o Grupo).")
+    else:
+        # 3. Procesamiento y cálculo de la simulación de sensibilidad
+        # Agrupamos por Clasificación para construir un gráfico limpio y ordenado
+        agrupado_sim = data_estrategica_f.groupby("Classif")[[anio_base, anio_proyectado_target]].sum().reset_index()
+        
+        # Calcular el valor proyectado simulado aplicando el factor de sensibilidad al Año Base
+        multiplicador = 1.0 + (factor_sensibilidad / 100.0)
+        agrupado_sim["Año Proyectado (Simulado)"] = agrupado_sim[anio_base] * multiplicador
+        
+        # Renombrar columnas para la visualización del usuario
+        agrupado_sim = agrupado_sim.rename(columns={
+            anio_base: f"Año Base ({anio_base})",
+            anio_proyectado_target: f"Presupuesto Original ({anio_proyectado_target})"
+        })
+
+        # 4. Métricas de Impacto Financiero
+        total_base = agrupado_sim[f"Año Base ({anio_base})"].sum()
+        total_proy_simulado = agrupado_sim["Año Proyectado (Simulado)"].sum()
+        impacto_absoluto = total_proy_simulado - total_base
+
+        col_m1, col_m2, col_m3 = st.columns(3)
+        with col_m1:
+            st.metric(
+                label=f"Total Gastos Año Base ({anio_base})",
+                value=f"$ {total_base:,.0f}",
+                delta=None
+            )
+        with col_m2:
+            st.metric(
+                label=f"Total Proyectado Simulado ({anio_proyectado_target})",
+                value=f"$ {total_proy_simulado:,.0f}",
+                delta=f"{factor_sensibilidad:+.1f} % Aplicado",
+                delta_color="inverse" if factor_sensibilidad > 0 else "normal"
+            )
+        with col_m3:
+            st.metric(
+                label="Impacto Financiero Neto",
+                value=f"$ {impacto_absoluto:,.0f}",
+                delta="Incremento de Costos" if impacto_absoluto >= 0 else "Ahorro Simulado",
+                delta_color="inverse"
+            )
+
+        st.markdown("---")
+
+        # 5. CONSTRUCCIÓN DEL GRÁFICO DE COMPARACIÓN DINÁMICA
+        st.subheader(f"📊 Gráfico de Comparación: {anio_base} vs Escenario Proyectado {anio_proyectado_target}")
+        st.markdown("Este gráfico se actualiza automáticamente al cambiar los filtros de la barra lateral o al mover el control de sensibilidad.")
+
+        # Reestructuramos el dataframe de formato ancho a formato largo (melt) para Plotly Express
+        columnas_a_graficar = [f"Año Base ({anio_base})", "Año Proyectado (Simulado)"]
+        df_melted = agrupado_sim.melt(
+            id_vars=["Classif"],
+            value_vars=columnas_a_graficar,
+            var_name="Escenario",
+            value_name="Monto ($)"
+        )
+
+        # Crear el gráfico de barras agrupadas con Plotly
+        fig_comparativo = px.bar(
+            df_melted,
+            x="Classif",
+            y="Monto ($)",
+            color="Escenario",
+            barmode="group",
+            text="Monto ($)",
+            color_discrete_sequence=["#1f77b4", "#ff7f0e"] if factor_sensibilidad >= 0 else ["#1f77b4", "#2ca02c"],
+            labels={"Classif": "Clasificación de Gasto", "Monto ($)": "Presupuesto ($)"}
+        )
+
+        # Mejorar el diseño del gráfico, etiquetas y formato monetario
+        fig_comparativo.update_traces(
+            texttemplate='$%{text:,.0f}', 
+            textposition='outside'
+        )
+        fig_comparativo.update_layout(
+            xaxis_tickangle=-25,
+            yaxis=dict(title="Monto Expresado en USD/CLP", tickformat="$,.0f"),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            margin=dict(t=50, b=50, l=50, r=50),
+            height=550
+        )
+
+        st.plotly_chart(fig_comparativo, use_container_width=True, key="grafico_sensibilidad_estrategico")
+
+        # 6. Tabla de Detalles del Escenario Simulado
+        st.markdown("### 📋 Desglose Analítico del Escenario")
+        st.dataframe(
+            agrupado_sim,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                f"Año Base ({anio_base})": st.column_config.NumberColumn(format="$ %,.0f"),
+                f"Presupuesto Original ({anio_proyectado_target})": st.column_config.NumberColumn(format="$ %,.0f"),
+                "Año Proyectado (Simulado)": st.column_config.NumberColumn(format="$ %,.0f")
+            }
+        )
