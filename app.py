@@ -787,12 +787,12 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
     slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, val_dolar, step=0.1)
     slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, val_labor, step=0.1)
 
-    # Parámetros dinámicos para el gráfico temporal de líneas
+    # Parámetros dinámicos para el gráfico temporal de líneas y selectores globales
     st.sidebar.markdown("---")
     st.sidebar.subheader("📅 Períodos del Gráfico Temporal")
     lista_anios_disponibles = ['2024', '2026', '2027', '2028', '2029', '2030', '2031']
-    anio_base_sel = st.sidebar.selectbox("Seleccione Año Base:", lista_anios_disponibles, index=1)
-    anio_proy_sel = st.sidebar.selectbox("Seleccione Año Proyectado Objetivo:", [a for a in lista_anios_disponibles if a != anio_base_sel], index=1)
+    anio_base_sel = st.sidebar.selectbox("Seleccione Año Base (Lateral):", lista_anios_disponibles, index=1)
+    anio_proy_sel = st.sidebar.selectbox("Seleccione Año Proyectado Objetivo (Lateral):", [a for a in lista_anios_disponibles if a != anio_base_sel], index=1)
 
     @st.cache_data
     def cargar_hojas_estratejicas(path):
@@ -842,6 +842,8 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
     # --- MÉTODO ÚNICO: Tendencia Limpia 2024 a 2026 sin Inflación ---
     tasa_crecimiento = np.where(f24 > 0, (f26 / (f24 + 1e-6)) ** (1/2), 1.0).clip(0.95, 1.10)
     
+    df_estrat['Base_FY24'] = f24
+    df_estrat['Base_FY26'] = f26
     df_estrat['Base_FY27'] = f26 * tasa_crecimiento
     df_estrat['Base_FY28'] = df_estrat['Base_FY27'] * tasa_crecimiento
     df_estrat['Base_FY29'] = df_estrat['Base_FY28'] * tasa_crecimiento
@@ -867,8 +869,10 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
 
     df_estrat['Factor_Estrés_Fila'] = df_estrat.apply(evaluar_afectacion, axis=1)
 
+    todos_los_anios = ['FY24', 'FY26', 'FY27', 'FY28', 'FY29', 'FY30', 'FY31']
     años_quinquenio = ['FY27', 'FY28', 'FY29', 'FY30', 'FY31']
-    for a in años_quinquenio:
+    
+    for a in todos_los_anios:
         df_estrat[f'Final_{a}'] = df_estrat[f'Base_{a}'] * df_estrat['Factor_Estrés_Fila']
 
     meses_cal = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -891,18 +895,30 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
     cols_salida = cols_existentes + [f'{m}-27' for m in meses_cal] + [f'Final_{a}' for a in años_quinquenio]
     df_final_proy = df_estrat[cols_salida].copy()
 
-    # --- TABLERO INTERACTIVO DE KPIs ---
-    tot_fy27_base = df_estrat['Base_FY27'].sum()
-    tot_fy27_estres = df_estrat['Final_FY27'].sum()
-    delta_usd = tot_fy27_estres - tot_fy27_base
-    pct_var = (delta_usd / tot_fy27_base * 100) if tot_fy27_base != 0 else 0
+    # --- CONFIGURACIÓN DINÁMICA DE LA SECCIÓN DE KPIs ---
+    st.markdown("### 🏆 Resumen de KPIs Personalizado")
+    
+    # Selectores en fila para elegir años de comparación en el panel superior
+    col_sel_1, col_sel_2 = st.columns(2)
+    with col_sel_1:
+        kpi_base_year = st.selectbox("Comparar Año Base:", ['2024', '2026', '2027', '2028', '2029', '2030', '2031'], index=2, key="kpi_base_select")
+    with col_sel_2:
+        kpi_sim_year = st.selectbox("Contra Año Simulado:", ['2024', '2026', '2027', '2028', '2029', '2030', '2031'], index=2, key="kpi_sim_select")
 
-    st.markdown("### Resumen de KPIs (Año 2027)")
+    sufijo_kpi_base = f"FY{kpi_base_year[-2:]}"
+    sufijo_kpi_sim = f"FY{kpi_sim_year[-2:]}"
+
+    # Cálculo dinámico en base a la selección del usuario
+    tot_kpi_base = df_estrat[f'Base_{sufijo_kpi_base}'].sum()
+    tot_kpi_simulado = df_estrat[f'Final_{sufijo_kpi_sim}'].sum()
+    delta_kpi_usd = tot_kpi_simulado - tot_kpi_base
+    pct_kpi_var = (delta_kpi_usd / tot_kpi_base * 100) if tot_kpi_base != 0 else 0
+
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Proyección Base FY27", f"${tot_fy27_base:,.0f}")
-    col2.metric("Proyección Simulada FY27", f"${tot_fy27_estres:,.0f}")
-    col3.metric("Impacto Neto Operativo", f"${delta_usd:,.0f}", f"{pct_var:+.2f}%", delta_color="inverse")
-    col4.metric("Escenario de Riesgo", escenario)
+    col1.metric(f"Proyección Base ({kpi_base_year})", f"${tot_kpi_base:,.0f}")
+    col2.metric(f"Proyección Simulada ({kpi_sim_year})", f"${tot_kpi_simulado:,.0f}")
+    col3.metric("Impacto Neto Operativo", f"${delta_kpi_usd:,.0f}", f"{pct_kpi_var:+.2f}%", delta_color="inverse")
+    col4.metric("Escenario Activo", escenario)
 
     st.markdown("---")
     
@@ -972,7 +988,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 title=f"Evolución de Costos Mensuales — Impacto del Escenario ({escenario})",
                 color_discrete_map={
                     f"Año Base ({anio_base_sel})": "#457b9d",
-                    f"Año Proyectado Simulado ({anio_proy_sel})": "#e63946" if delta_usd >= 0 else "#2a9d8f"
+                    f"Año Proyectado Simulado ({anio_proy_sel})": "#e63946" if delta_kpi_usd >= 0 else "#2a9d8f"
                 }
             )
             fig_lineas.update_layout(
@@ -997,7 +1013,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         st.download_button("Descargar Reporte Quinquenal Excel", data=output_excel.getvalue(), file_name="Planificacion_Estrategica_Visual.xlsx", use_container_width=True)
 
     # ------------------------------------------------------------------------
-    # PESTAÑA: MOTOR DE REPORTE EJECUTIVO PDF - FECHA CHILE Y CLASIFF REALES
+    # PESTAÑA: MOTOR DE REPORTE EJECUTIVO PDF - TOTALMENTE EN SINCRONÍA
     # ------------------------------------------------------------------------
     with tab_est4:
         st.subheader("📄 Generador de Reporte PDF Corporativo en Tiempo Real")
@@ -1009,7 +1025,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         from reportlab.lib import colors
         from io import BytesIO
         from datetime import datetime
-        import zoneinfo  # Para asegurar la zona horaria de Chile de forma exacta
+        import zoneinfo
 
         def generar_pdf_ejecutivo():
             buffer = BytesIO()
@@ -1047,7 +1063,6 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 tz_chile = zoneinfo.ZoneInfo("America/Santiago")
                 ahora_chile = datetime.now(tz_chile)
             except Exception:
-                # Fallback por si el sistema operativo base no tiene cargada la db de zonas
                 ahora_chile = datetime.now()
                 
             fecha_viva = ahora_chile.strftime("%d/%m/%Y")
@@ -1106,14 +1121,14 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             story.append(t_alcance)
             
             story.append(Spacer(1, 15))
-            story.append(Paragraph("3. Métricas Clave de Impacto (Año Objetivo 2027)", h1_style))
+            story.append(Paragraph(f"3. Métricas Clave de Impacto Seleccionadas ({kpi_base_year} vs {kpi_sim_year})", h1_style))
             
             kpi_data = [
-                ["Métrica Financiera (FY27)", "Monto Valorizado (USD)"],
-                ["Proyección Financiera Base", f"$ {tot_fy27_base:,.0f}"],
-                ["Proyección con Sensibilidad Aplicada", f"$ {tot_fy27_estres:,.0f}"],
-                ["Impacto Neto Neto en Margen", f"$ {delta_usd:,.0f}"],
-                ["Variación Porcentual Operativa", f"{pct_var:+.2f} %"]
+                [f"Métrica Financiera", "Monto Valorizado (USD)"],
+                [f"Proyección Financiera Base ({kpi_base_year})", f"$ {tot_kpi_base:,.0f}"],
+                [f"Proyección con Sensibilidad ({kpi_sim_year})", f"$ {tot_kpi_simulado:,.0f}"],
+                ["Impacto Neto Neto en Margen", f"$ {delta_kpi_usd:,.0f}"],
+                ["Variación Porcentual Operativa", f"{pct_kpi_var:+.2f} %"]
             ]
             t_kpi = Table(kpi_data, colWidths=[250, 250])
             t_kpi.setStyle(TableStyle([
@@ -1177,7 +1192,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             return buffer
 
         pdf_final = generar_pdf_ejecutivo()
-        st.info("💡 Cada vez que ajustas un filtro organizacional o un slider, el botón de descarga se actualiza en tiempo real con la información exacta.")
+        st.info("💡 Cada vez que ajustas un filtro organizacional, un selector de KPI o un slider, todo el panel y el reporte PDF se actualizan automáticamente.")
         
         st.download_button(
             label="📥 Descargar Reporte Ejecutivo Oficial (PDF)",
