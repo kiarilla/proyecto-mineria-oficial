@@ -989,7 +989,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
-    # ============================================================================
+# ============================================================================
 # ============================================================================
 # MÓDULO 2: PROYECCIÓN ESTRATÉGICA (AÑO BASE VS PROYECTADO CON SENSIBILIDAD)
 # ============================================================================
@@ -1001,20 +1001,19 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
     # 1. Sidebar específico para Análisis de Sensibilidad y Selección de Años
     st.sidebar.title("🎛️ Parámetros de Simulación")
     
-    # Intentamos identificar qué columnas de años (FYXX) están presentes en las tablas cargadas
+    # Identificar dinámicamente columnas de años (FYXX)
     columnas_disponibles = [col for col in budget_merged.columns if str(col).startswith("FY")]
     if not columnas_disponibles:
-        # Años por defecto en caso de no encontrarlos dinámicamente
         columnas_disponibles = ["FY24", "FY25", "FY26", "FY27", "FY28", "FY29", "FY30"]
     
     st.sidebar.markdown("### 📅 Selección de Períodos")
     anio_base = st.sidebar.selectbox(
         "Seleccione el Año Base (Real / Presupuesto)", 
         columnas_disponibles, 
-        index=0
+        index=0,
+        key="sb_anio_base" # Forzamos una key única para controlar cambios de estado
     )
     
-    # Filtrar para que el año proyectado idealmente sea posterior o diferente
     opciones_proyeccion = [col for col in columnas_disponibles if col != anio_base]
     if not opciones_proyeccion:
         opciones_proyeccion = columnas_disponibles
@@ -1022,7 +1021,8 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
     anio_proyectado_target = st.sidebar.selectbox(
         "Seleccione el Año Proyectado Objetivo", 
         opciones_proyeccion, 
-        index=min(2, len(opciones_proyeccion)-1)
+        index=min(2, len(opciones_proyeccion)-1),
+        key="sb_anio_target"
     )
 
     st.sidebar.markdown("### ⚡ Factor de Ajuste")
@@ -1032,42 +1032,54 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         max_value=50.0, 
         value=0.0, 
         step=0.5,
-        help="Aplica un porcentaje multiplicador de aumento o reducción de costos sobre el año base para simular el escenario futuro."
+        help="Aplica un porcentaje multiplicador de aumento o reducción de costos sobre el año base.",
+        key="sb_factor_sensibilidad"
     )
 
-    # 2. Función interna de filtrado para el Módulo 2
+    # 2. Función interna de filtrado (Agregamos validación por si las variables globales no están inicializadas)
     def filtrar_estrategico(df: pd.DataFrame) -> pd.DataFrame:
         """Aplica los filtros globales del sidebar superior al dataframe estratégico."""
-        if vp_seleccionada != "Todas" and "VP" in df.columns:
-            df = df[df["VP"] == vp_seleccionada]
-        if classif_seleccionada != "Todas" and "Classif" in df.columns:
-            df = df[df["Classif"] == classif_seleccionada]
-        if class_seleccionada != "Todas" and "CLASS" in df.columns:
-            df = df[df["CLASS"] == class_seleccionada]
+        # Usamos st.session_state o variables del scope superior si existen
+        vp = vp_seleccionada if 'vp_seleccionada' in globals() else "Todas"
+        classif = classif_seleccionada if 'classif_seleccionada' in globals() else "Todas"
+        g_class = class_seleccionada if 'class_seleccionada' in globals() else "Todas"
+
+        if vp != "Todas" and "VP" in df.columns:
+            df = df[df["VP"] == vp]
+        if classif != "Todas" and "Classif" in df.columns:
+            df = df[df["Classif"] == classif]
+        if g_class != "Todas" and "CLASS" in df.columns:
+            df = df[df["CLASS"] == g_class]
         return df
 
     # Filtramos la matriz maestra unificada
     data_estrategica_f = filtrar_estrategico(budget_merged.copy())
 
     if data_estrategica_f.empty:
-        st.warning("⚠️ No existen registros que coincidan con los filtros globales seleccionados (VP, Clasificación o Grupo).")
+        st.warning("⚠️ No existen registros que coincidan con los filtros seleccionados (Asegúrese de que existan datos válidos con los filtros de la barra superior).")
     else:
         # 3. Procesamiento y cálculo de la simulación de sensibilidad
-        # Agrupamos por Clasificación para construir un gráfico limpio y ordenado
+        # Asegurar que las columnas del año base y target se manejen como numéricas
+        data_estrategica_f[anio_base] = pd.to_numeric(data_estrategica_f[anio_base], errors='coerce').fillna(0)
+        data_estrategica_f[anio_proyectado_target] = pd.to_numeric(data_estrategica_f[anio_proyectado_target], errors='coerce').fillna(0)
+
         agrupado_sim = data_estrategica_f.groupby("Classif")[[anio_base, anio_proyectado_target]].sum().reset_index()
         
         # Calcular el valor proyectado simulado aplicando el factor de sensibilidad al Año Base
         multiplicador = 1.0 + (factor_sensibilidad / 100.0)
         agrupado_sim["Año Proyectado (Simulado)"] = agrupado_sim[anio_base] * multiplicador
         
-        # Renombrar columnas para la visualización del usuario
+        # Guardamos nombres para las columnas formateadas
+        col_base_renombrada = f"Año Base ({anio_base})"
+        col_target_renombrada = f"Presupuesto Original ({anio_proyectado_target})"
+
         agrupado_sim = agrupado_sim.rename(columns={
-            anio_base: f"Año Base ({anio_base})",
-            anio_proyectado_target: f"Presupuesto Original ({anio_proyectado_target})"
+            anio_base: col_base_renombrada,
+            anio_proyectado_target: col_target_renombrada
         })
 
         # 4. Métricas de Impacto Financiero
-        total_base = agrupado_sim[f"Año Base ({anio_base})"].sum()
+        total_base = agrupado_sim[col_base_renombrada].sum()
         total_proy_simulado = agrupado_sim["Año Proyectado (Simulado)"].sum()
         impacto_absoluto = total_proy_simulado - total_base
 
@@ -1075,8 +1087,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         with col_m1:
             st.metric(
                 label=f"Total Gastos Año Base ({anio_base})",
-                value=f"$ {total_base:,.0f}",
-                delta=None
+                value=f"$ {total_base:,.0f}"
             )
         with col_m2:
             st.metric(
@@ -1090,17 +1101,16 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 label="Impacto Financiero Neto",
                 value=f"$ {impacto_absoluto:,.0f}",
                 delta="Incremento de Costos" if impacto_absoluto >= 0 else "Ahorro Simulado",
-                delta_color="inverse"
+                delta_color="inverse" if impacto_absoluto > 0 else "normal"
             )
 
         st.markdown("---")
 
         # 5. CONSTRUCCIÓN DEL GRÁFICO DE COMPARACIÓN DINÁMICA
         st.subheader(f"📊 Gráfico de Comparación: {anio_base} vs Escenario Proyectado {anio_proyectado_target}")
-        st.markdown("Este gráfico se actualiza automáticamente al cambiar los filtros de la barra lateral o al mover el control de sensibilidad.")
-
+        
         # Reestructuramos el dataframe de formato ancho a formato largo (melt) para Plotly Express
-        columnas_a_graficar = [f"Año Base ({anio_base})", "Año Proyectado (Simulado)"]
+        columnas_a_graficar = [col_base_renombrada, "Año Proyectado (Simulado)"]
         df_melted = agrupado_sim.melt(
             id_vars=["Classif"],
             value_vars=columnas_a_graficar,
@@ -1120,7 +1130,6 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             labels={"Classif": "Clasificación de Gasto", "Monto ($)": "Presupuesto ($)"}
         )
 
-        # Mejorar el diseño del gráfico, etiquetas y formato monetario
         fig_comparativo.update_traces(
             texttemplate='$%{text:,.0f}', 
             textposition='outside'
@@ -1142,8 +1151,8 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             use_container_width=True,
             hide_index=True,
             column_config={
-                f"Año Base ({anio_base})": st.column_config.NumberColumn(format="$ %,.0f"),
-                f"Presupuesto Original ({anio_proyectado_target})": st.column_config.NumberColumn(format="$ %,.0f"),
+                col_base_renombrada: st.column_config.NumberColumn(format="$ %,.0f"),
+                col_target_renombrada: st.column_config.NumberColumn(format="$ %,.0f"),
                 "Año Proyectado (Simulado)": st.column_config.NumberColumn(format="$ %,.0f")
             }
         )
