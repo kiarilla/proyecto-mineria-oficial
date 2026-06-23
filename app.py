@@ -1065,7 +1065,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 worksheet.write(17+i, start_col, var_name, text_fmt)
                 worksheet.write(17+i, start_col+1, var_val, pct_fmt)
                 
-            worksheet.write(22, start_col, f"Escenario Maestro Activo: {escenario}", workbook.add_format({'bold': True, 'font_italic': True}))
+            worksheet.write(22, start_col, f"Escenario Maestro Activo: {escenario}", workbook.add_format({'bold': True, 'italic': True}))
 
             # --- CREACIÓN DEL GRÁFICO DENTRO DE EXCEL ---
             chart = workbook.add_chart({'type': 'column'})
