@@ -754,7 +754,6 @@ if app_mode == "📊 Forecast Operacional (5+7)":
         st.subheader("Resultados de Backtesting")
         st.dataframe(resultados_backtesting, use_container_width=True, hide_index=True)
 
-
 # ============================================================================
 # ============================================================================
 # MÓDULO 2: PROYECCIÓN ESTRATÉGICA QUINQUENAL (2027-2031)
@@ -812,6 +811,36 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
     df_estrat = df_estrat.merge(b24[['CC', 'FY24']], on='CC', how='left')
     df_estrat = df_estrat.merge(b26[['CC', 'FY26'] + [f'{m}-26' for m in ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']]], on='CC', how='left')
     df_estrat.fillna(0, inplace=True)
+
+    # --------------------------------------------------------------------
+    # NUEVO: FILTROS DINÁMICOS DE ESTRUCTURA ORGANIZACIONAL (ESTILO FORECAST)
+    # --------------------------------------------------------------------
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🔍 Filtros de Estructura")
+    
+    lista_vps = sorted(df_estrat['VP'].dropna().unique().tolist()) if 'VP' in df_estrat.columns else []
+    selected_vps = st.sidebar.multiselect("Filtrar por VP:", lista_vps)
+
+    # Filtrado en cascada para Gerencias
+    if selected_vps:
+        df_temp_ger = df_estrat[df_estrat['VP'].isin(selected_vps)]
+    else:
+        df_temp_ger = df_estrat
+    lista_gerencias = sorted(df_temp_ger['Gerencia'].dropna().unique().tolist()) if 'Gerencia' in df_temp_ger.columns else []
+    selected_gerencias = st.sidebar.multiselect("Filtrar por Gerencia:", lista_gerencias)
+
+    # Filtrado para Clasificación
+    lista_classif = sorted(df_estrat['Classif'].dropna().unique().tolist()) if 'Classif' in df_estrat.columns else []
+    selected_classif = st.sidebar.multiselect("Filtrar por Clasificación:", lista_classif)
+
+    # Aplicación efectiva de los filtros sobre el DataFrame matriz antes del cálculo
+    if selected_vps:
+        df_estrat = df_estrat[df_estrat['VP'].isin(selected_vps)]
+    if selected_gerencias:
+        df_estrat = df_estrat[df_estrat['Gerencia'].isin(selected_gerencias)]
+    if selected_classif:
+        df_estrat = df_estrat[df_estrat['Classif'].isin(selected_classif)]
+    # --------------------------------------------------------------------
 
     f24 = pd.to_numeric(df_estrat['FY24'], errors='coerce').fillna(0)
     f26 = pd.to_numeric(df_estrat['FY26'], errors='coerce').fillna(0)
@@ -890,94 +919,93 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
     ])
 
     with tab_est1:
-        # 1. Gráfico Original: Presupuesto Multianual por Clasificación
-        df_melt = df_final_proy[['Classif'] + [f'Final_{a}' for a in años_quinquenio]].melt(id_vars=['Classif'], var_name='Año', value_name='Monto')
-        df_melt['Año'] = df_melt['Año'].str.replace('Final_FY', '20')
-        df_g_anual = df_melt.groupby(['Año', 'Classif'])['Monto'].sum().reset_index()
+        if df_final_proy.empty:
+            st.warning("⚠️ No existen registros con la combinación de filtros seleccionada.")
+        else:
+            # 1. Gráfico Original: Presupuesto Multianual por Clasificación
+            df_melt = df_final_proy[['Classif'] + [f'Final_{a}' for a in años_quinquenio]].melt(id_vars=['Classif'], var_name='Año', value_name='Monto')
+            df_melt['Año'] = df_melt['Año'].str.replace('Final_FY', '20')
+            df_g_anual = df_melt.groupby(['Año', 'Classif'])['Monto'].sum().reset_index()
 
-        fig_barras = px.bar(
-            df_g_anual, 
-            x="Año", y="Monto", color="Classif", 
-            title="Presupuesto Multianual Reconstruido y Simulado (USD Detallado)", 
-            color_discrete_sequence=px.colors.qualitative.Safe
-        )
-        fig_barras.update_layout(yaxis_tickformat="$,.0f")
-        st.plotly_chart(fig_barras, use_container_width=True)
+            fig_barras = px.bar(
+                df_g_anual, 
+                x="Año", y="Monto", color="Classif", 
+                title="Presupuesto Multianual Reconstruido y Simulado (USD Detallado)", 
+                color_discrete_sequence=px.colors.qualitative.Safe
+            )
+            fig_barras.update_layout(yaxis_tickformat="$,.0f")
+            st.plotly_chart(fig_barras, use_container_width=True)
 
-        # --------------------------------------------------------------------
-        # GRÁFICO ACTUALIZADO: TOTALES GLOBALES POR AÑO (CON COLORES DIFERENTES)
-        # --------------------------------------------------------------------
-        st.markdown("#### 📊 Presupuesto Total Consolidado Quinquenal")
-        st.markdown("Muestra el monto total global por cada año simulado, sensible a los parámetros del panel operativo.")
+            # 2. Gráfico: Totales Globales por Año con Colores Diferentes
+            st.markdown("#### 📊 Presupuesto Total Consolidado Quinquenal")
+            st.markdown("Muestra el monto total global por cada año simulado, sensible a los filtros y parámetros operativos.")
 
-        df_total_por_anio = df_g_anual.groupby('Año')['Monto'].sum().reset_index()
+            df_total_por_anio = df_g_anual.groupby('Año')['Monto'].sum().reset_index()
 
-        fig_totales_globales = px.bar(
-            df_total_por_anio,
-            x="Año",
-            y="Monto",
-            color="Año",  # <-- Hace que cada barra tenga un color distinto según el año
-            text="Monto",
-            title="Evolución del Costo Total Global Consolidado (2027-2031)",
-            color_discrete_sequence=px.colors.qualitative.Dark24 # Paleta de colores variada y distinguible
-        )
-        fig_totales_globales.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
-        fig_totales_globales.update_layout(
-            xaxis_title="Año Operativo",
-            yaxis_title="Monto Neto General ($)",
-            yaxis_tickformat="$,.0f",
-            margin=dict(t=50, b=50),
-            height=450,
-            showlegend=False # Ocultamos la leyenda ya que el eje X ya dice claramente los años
-        )
-        st.plotly_chart(fig_totales_globales, use_container_width=True, key="grafico_barras_totales_globales")
+            fig_totales_globales = px.bar(
+                df_total_por_anio,
+                x="Año",
+                y="Monto",
+                color="Año",
+                text="Monto",
+                title="Evolución del Costo Total Global Consolidado (2027-2031)",
+                color_discrete_sequence=px.colors.qualitative.Dark24
+            )
+            fig_totales_globales.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
+            fig_totales_globales.update_layout(
+                xaxis_title="Año Operativo",
+                yaxis_title="Monto Neto General ($)",
+                yaxis_tickformat="$,.0f",
+                margin=dict(t=50, b=50),
+                height=450,
+                showlegend=False
+            )
+            st.plotly_chart(fig_totales_globales, use_container_width=True, key="grafico_barras_totales_globales")
 
-        # --------------------------------------------------------------------
-        # GRÁFICO: LÍNEAS TEMPORALES MENSUALES
-        # --------------------------------------------------------------------
-        st.markdown(f"#### 📈 Curva Mensual Temporal: Año Base {anio_base_sel} vs Año Proyectado (Simulado) {anio_proy_sel}")
-        st.markdown("Las líneas representan los montos agregados mensuales y se recalculan dinámicamente al mover las sensibilidades.")
+            # 3. Gráfico: Líneas Temporales Mensuales
+            st.markdown(f"#### 📈 Curva Mensual Temporal: Año Base {anio_base_sel} vs Año Proyectado (Simulado) {anio_proy_sel}")
+            st.markdown("Las líneas representan los montos agregados mensuales y se filtran dinámicamente.")
 
-        sufijo_base = str(anio_base_sel)[-2:]
-        sufijo_proy = str(anio_proy_sel)[-2:]
+            sufijo_base = str(anio_base_sel)[-2:]
+            sufijo_proy = str(anio_proy_sel)[-2:]
 
-        totales_mensuales_base = []
-        totales_mensuales_proy = []
+            totales_mensuales_base = []
+            totales_mensuales_proy = []
 
-        for m in meses_cal:
-            col_b = f"{m}-{sufijo_base}"
-            col_p = f"{m}-{sufijo_proy}"
-            totales_mensuales_base.append(df_estrat[col_b].sum() if col_b in df_estrat.columns else 0.0)
-            totales_mensuales_proy.append(df_estrat[col_p].sum() if col_p in df_estrat.columns else 0.0)
+            for m in meses_cal:
+                col_b = f"{m}-{sufijo_base}"
+                col_p = f"{m}-{sufijo_proy}"
+                totales_mensuales_base.append(df_estrat[col_b].sum() if col_b in df_estrat.columns else 0.0)
+                totales_mensuales_proy.append(df_estrat[col_p].sum() if col_p in df_estrat.columns else 0.0)
 
-        meses_largos = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+            meses_largos = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
 
-        df_lineas_trend = pd.DataFrame({
-            "Mes": meses_largos * 2,
-            "Monto": totales_mensuales_base + totales_mensuales_proy,
-            "Año / Escenario": [f"Año Base ({anio_base_sel})"] * 12 + [f"Año Proyectado Simulado ({anio_proy_sel})"] * 12
-        })
+            df_lineas_trend = pd.DataFrame({
+                "Mes": meses_largos * 2,
+                "Monto": totales_mensuales_base + totales_mensuales_proy,
+                "Año / Escenario": [f"Año Base ({anio_base_sel})"] * 12 + [f"Año Proyectado Simulado ({anio_proy_sel})"] * 12
+            })
 
-        fig_lineas = px.line(
-            df_lineas_trend,
-            x="Mes",
-            y="Monto",
-            color="Año / Escenario",
-            markers=True,
-            title=f"Evolución de Costos Mensuales — Impacto del Escenario ({escenario})",
-            color_discrete_map={
-                f"Año Base ({anio_base_sel})": "#457b9d",
-                f"Año Proyectado Simulado ({anio_proy_sel})": "#e63946" if delta_usd >= 0 else "#2a9d8f"
-            }
-        )
-        fig_lineas.update_layout(
-            xaxis_title="Meses del Período",
-            yaxis_title="Monto Total General ($)",
-            yaxis_tickformat="$,.0f",
-            hovermode="x unified",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        st.plotly_chart(fig_lineas, use_container_width=True, key="grafico_lineas_mensual_quinquenal")
+            fig_lineas = px.line(
+                df_lineas_trend,
+                x="Mes",
+                y="Monto",
+                color="Año / Escenario",
+                markers=True,
+                title=f"Evolución de Costos Mensuales — Impacto del Escenario ({escenario})",
+                color_discrete_map={
+                    f"Año Base ({anio_base_sel})": "#457b9d",
+                    f"Año Proyectado Simulado ({anio_proy_sel})": "#e63946" if delta_usd >= 0 else "#2a9d8f"
+                }
+            )
+            fig_lineas.update_layout(
+                xaxis_title="Meses del Período",
+                yaxis_title="Monto Total General ($)",
+                yaxis_tickformat="$,.0f",
+                hovermode="x unified",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig_lineas, use_container_width=True, key="grafico_lineas_mensual_quinquenal")
 
     with tab_est2:
         st.markdown("**Inspector Semántico:** Revisa qué celdas detectó el algoritmo basándose en las descripciones y la clasificación de mano de obra.")
@@ -996,7 +1024,6 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
 
     with tab_est3:
         st.subheader("Motor de Reportes Excel (XlsxWriter)")
-        st.markdown("El sistema genera un archivo Excel que incluye la tabla de datos, el cuadro paramétrico de sensibilidades separado a la derecha y un gráfico interactivo nativo de Excel con el resumen quinquenal.")
         
         from io import BytesIO
         output_excel = BytesIO()
