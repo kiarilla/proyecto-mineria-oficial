@@ -753,8 +753,6 @@ if app_mode == "📊 Forecast Operacional (5+7)":
         st.markdown("---")
         st.subheader("Resultados de Backtesting")
         st.dataframe(resultados_backtesting, use_container_width=True, hide_index=True)
-
-# ============================================================================
 # ============================================================================
 # MÓDULO 2: PROYECCIÓN ESTRATÉGICA QUINQUENAL (2027-2031)
 # ============================================================================
@@ -982,7 +980,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 anios_proy_grafico = ['2027', '2028', '2029', '2030', '2031']
                 
                 totales_base_anual = [df_estrat[f'Base_FY{a[-2:]}'].sum() for a in anios_proy_grafico]
-                totales_sim_anual = [df_estrat[f'Final_FY{a[-2:]}'].sum() for a in anios_proy_grafico]
+                totales_sim_anual = [df_estrat[f'Final_{a[-2:]}'].sum() for a in anios_proy_grafico]
 
                 df_lineas_anual = pd.DataFrame({
                     "Año Operativo": anios_proy_grafico * 2,
@@ -1005,6 +1003,44 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                 )
                 st.plotly_chart(fig_tendencia, use_container_width=True, key="grafico_tendencia_anual")
+
+                # --- NUEVO CUARTO GRÁFICO: SENSIVILIDAD MENSUAL SOLO PARA EL AÑO 2027 ---
+                st.markdown(f"#### 📆 Análisis Mensual Detallado (Año 2027): Línea Base vs. Escenario Simulado ({escenario})")
+                
+                # Cálculo mensual dinámico para la Base y la Simulación 2027 usando pesos calibrados
+                mensuales_base_2027 = []
+                mensuales_sim_2027 = []
+                
+                for m in meses_cal:
+                    peso_m = df_estrat[f'peso_{m}']
+                    peso_ajustado = np.where(suma_pesos > 0, peso_m / (suma_pesos + 1e-6), 1.0/12.0)
+                    
+                    monto_base_m = (df_estrat['Base_FY27'] * peso_ajustado).sum()
+                    monto_sim_m = (df_estrat['Final_FY27'] * peso_ajustado).sum()
+                    
+                    mensuales_base_2027.append(monto_base_m)
+                    mensuales_sim_2027.append(monto_sim_m)
+                
+                df_lineas_mensual = pd.DataFrame({
+                    "Mes": meses_cal * 2,
+                    "Monto": mensuales_base_2027 + mensuales_sim_2027,
+                    "Tipo de Proyección": ["Línea Base 2027"] * 12 + ["Escenario Simulado 2027"] * 12
+                })
+                
+                fig_mensual_2027 = px.line(
+                    df_lineas_mensual, x="Mes", y="Monto", color="Tipo de Proyección", markers=True,
+                    title="Distribución Mensual 2027: Sensibilidad del Presupuesto Operativo Interno",
+                    color_discrete_map={
+                        "Línea Base 2027": "#4a4e69",
+                        "Escenario Simulado 2027": "#f28482" if delta_kpi_usd >= 0 else "#84a59d"
+                    }
+                )
+                fig_mensual_2027.update_layout(
+                    xaxis_title="Meses (Distribución 2027)", yaxis_title="Costo Mensual Consolidado (USD)",
+                    yaxis_tickformat="$,.0f", hovermode="x unified",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                st.plotly_chart(fig_mensual_2027, use_container_width=True, key="grafico_tendencia_mensual_2027")
 
         with tab_est2:
             st.markdown("**Inspector Semántico Activo:** Revisa qué filas específicas han sido modificadas por las elasticidades de tus sliders (filas cuyo factor multiplicador es distinto de 1.0).")
@@ -1271,3 +1307,5 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 mime="application/pdf",
                 use_container_width=True
             )
+# ============================================================================
+
