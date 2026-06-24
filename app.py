@@ -1119,6 +1119,37 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             texto_barras.append(f"${total_final_real/1e6:,.1f}M")
 
             # =========================================================================
+            # 3. CONSTRUCCIÓN DEL GRÁFICO DE CASCADA
+            # =========================================================================
+            fig_profe = go.Figure(go.Waterfall(
+                name = "Puente",
+                orientation = "v",
+                measure = medidas,
+                x = categorias,
+                y = valores,
+                text = texto_barras,
+                textposition = "outside",
+                connector = {"line":{"color":"rgb(63, 63, 63)", "width": 1, "dash": "dot"}},
+                decreasing = {"marker":{"color":"#2a9d8f"}}, # Verde si la cuenta bajó costos
+                increasing = {"marker":{"color":"#e63946"}}, # Rojo si la cuenta subió costos
+                totals     = {"marker":{"color":"#1d3557"}}  # Azul corporativo para los totales
+            ))
+
+            fig_profe.update_layout(
+                title = f"<b>Bridge: Budget {kpi_base_year} vs Budget {kpi_sim_year} (USD)</b>",
+                showlegend = False,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                height=520,
+                margin=dict(t=80, b=40, l=40, r=40)
+            )
+
+            # Renderizamos el gráfico dinámico en la pantalla de Streamlit
+            st.plotly_chart(fig_profe, use_container_width=True)
+
+            st.write("---") # Divisor visual entre el gráfico macro y el detalle micro
+
+            # =========================================================================
             # 3. INSPECTOR SEMÁNTICO (Tu código original)
             # =========================================================================
             st.markdown("**Inspector Semántico Activo:** Revisa qué filas específicas han sido modificadas por las elasticidades de tus sliders (filas cuyo factor multiplicador es distinto de 1.0).")
