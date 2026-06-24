@@ -1006,52 +1006,58 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 )
                 st.plotly_chart(fig_tendencia, use_container_width=True, key="grafico_tendencia_anual")
 
-                # 1. Título fijo indicando que la proyección mapea exclusivamente el año 2027
-            st.markdown(f"#### 📈 Curva Mensual Temporal: Año Base {anio_base_sel} vs Año Proyectado (Simulado) 2027")
-            
-            # 2. Definición de sufijos: el de proyección se fuerza estáticamente a "27"
-            sufijo_base = str(anio_base_sel)[-2:]
-            sufijo_proy = "27"  # Forzado para el año 2027
-            
-            totales_mensuales_base = []
-            totales_mensuales_proy = []
-            
-            # 3. Construcción y suma de columnas indexadas en el DataFrame (ej: "Ene-27")
-            for m in meses_cal:
-                col_b = f"{m}-{sufijo_base}"
-                col_p = f"{m}-{sufijo_proy}"  # Esto buscará "Ene-27", "Feb-27", etc.
-                totales_mensuales_base.append(df_estrat[col_b].sum() if col_b in df_estrat.columns else 0.0)
-                totales_mensuales_proy.append(df_estrat[col_p].sum() if col_p in df_estrat.columns else 0.0)
-            
-            meses_largos = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
-            
-            # 4. Creación del DataFrame para el gráfico con etiquetas fijas para 2027
-            df_lineas_trend = pd.DataFrame({
-                "Mes": meses_largos * 2,
-                "Monto": totales_mensuales_base + totales_mensuales_proy,
-                "Año / Escenario": [f"Año Base ({anio_base_sel})"] * 12 + ["Año Proyectado Simulado (2027)"] * 12
-            })
-            
-            # 5. Configuración y renderizado del gráfico de Plotly
-            fig_lineas = px.line(
-                df_lineas_trend, x="Mes", y="Monto", color="Año / Escenario", markers=True,
-                title=f"Evolución de Costos Mensuales — Impacto del Escenario ({escenario})",
-                color_discrete_map={
-                    f"Año Base ({anio_base_sel})": "#457b9d",
-                    "Año Proyectado Simulado (2027)": "#e63946" if delta_kpi_usd >= 0 else "#2a9d8f"
-                }
-            )
-            
-            fig_lineas.update_layout(
-                xaxis_title="Meses del Período", 
-                yaxis_title="Monto Total General ($)",
-                yaxis_tickformat="$,.0f", 
-                hovermode="x unified",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-            )
-            
-            # Nota: Se recomienda cambiar la 'key' si renderizas este gráfico en paralelo con otros para evitar duplicidades en Streamlit
-            st.plotly_chart(fig_lineas, use_container_width=True, key="grafico_lineas_mensual_2027")
+             # 1. Definimos las variables de los años fijos según la metodología del proyecto
+                anio_base_sel = 2026   # El año base real usado para calcular la estacionalidad (FY26)
+                anio_proy_sel = 2027   # El único año proyectado mensualmente
+                
+                # 2. Extraemos los sufijos de dos dígitos ("26" y "27")
+                sufijo_base = "26"
+                sufijo_proy = "27"
+                
+                # 3. Título del gráfico en Streamlit (con variables ya definidas)
+                st.markdown(f"#### 📈 Curva Mensual Temporal: Año Base {anio_base_sel} vs Año Proyectado (Simulado) {anio_proy_sel}")
+                
+                totales_mensuales_base = []
+                totales_mensuales_proy = []
+                
+                # 4. Iteración sobre los meses mapeados en las columnas del DataFrame
+                for m in meses_cal:
+                    col_b = f"{m}-{sufijo_base}"   # Buscará "Ene-26", "Feb-26", etc.
+                    col_p = f"{m}-{sufijo_proy}"   # Buscará "Ene-27", "Feb-27", etc.
+                    
+                    # Sumar si existen en las columnas, de lo contrario colocar 0.0 para evitar caídas
+                    totales_mensuales_base.append(df_estrat[col_b].sum() if col_b in df_estrat.columns else 0.0)
+                    totales_mensuales_proy.append(df_estrat[col_p].sum() if col_p in df_estrat.columns else 0.0)
+                
+                meses_largos = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+                
+                # 5. Estructuración del DataFrame para Plotly Express
+                df_lineas_trend = pd.DataFrame({
+                    "Mes": meses_largos * 2,
+                    "Monto": totales_mensuales_base + totales_mensuales_proy,
+                    "Año / Escenario": [f"Año Base ({anio_base_sel})"] * 12 + [f"Año Proyectado Simulado ({anio_proy_sel})"] * 12
+                })
+                
+                # 6. Construcción del Gráfico de Líneas Estacionales
+                fig_lineas = px.line(
+                    df_lineas_trend, x="Mes", y="Monto", color="Año / Escenario", markers=True,
+                    title=f"Evolución de Costos Mensuales — Impacto del Escenario ({escenario})",
+                    color_discrete_map={
+                        f"Año Base ({anio_base_sel})": "#457b9d",
+                        f"Año Proyectado Simulado ({anio_proy_sel})": "#e63946" if delta_kpi_usd >= 0 else "#2a9d8f"
+                    }
+                )
+                
+                fig_lineas.update_layout(
+                    xaxis_title="Meses del Período", 
+                    yaxis_title="Monto Total General ($)",
+                    yaxis_tickformat="$,.0f", 
+                    hovermode="x unified",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                
+                # Renderizado en Streamlit con llave única para control de interfaz
+                st.plotly_chart(fig_lineas, use_container_width=True, key="grafico__mensual_2027")
 
         with tab_est2:
             st.markdown("**Inspector Semántico Activo:** Revisa qué filas específicas han sido modificadas por las elasticidades de tus sliders (filas cuyo factor multiplicador es distinto de 1.0).")
