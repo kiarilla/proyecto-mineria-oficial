@@ -1072,7 +1072,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
 
             # --- ENERGÍA ---
             # Nota: Revisa si en tu Excel se llama 'Energy', 'Power' o 'Energía' y cámbialo aquí
-            df_energia = df_estrat[df_estrat['Classif'] == 'Energy'] 
+            df_energia = df_estrat[df_estrat['Classif'] == 'Power'] 
             gasto_base_energia = df_energia[f'Base_{sufijo_kpi_sim}'].sum() if not df_energia.empty else 0
             impacto_energia_usd = gasto_base_energia * (slider_power_pct / 100.0)
 
@@ -1080,9 +1080,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             # El tipo de cambio suele afectar a los costos indexados en USD o a todo lo importado.
             # Si afecta a una categoría específica, reemplaza 'FX_Indexed'. Si afecta a todo el 
             # presupuesto por igual, puedes dejarlo con 'tot_kpi_base'.
-            df_dolar = df_estrat[df_estrat['Classif'] == 'FX_Indexed'] 
-            gasto_base_dolar = df_dolar[f'Base_{sufijo_kpi_sim}'].sum() if not df_dolar.empty else tot_kpi_base
-            impacto_dolar_usd = gasto_base_dolar * (slider_dolar_pct / 100.0)
+            impacto_dolar_usd = tot_kpi_base * (slider_dolar_pct / 100.0)
 
             # --- MANO DE OBRA ---
             # Nota: Revisa si en tu Excel se llama 'Labor', 'Mano de Obra' o 'Personnel'
