@@ -11,58 +11,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 
-import plotly.io as pio
-import plotly.express as px
 
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-import plotly.io as pio
-
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-import plotly.io as pio
-
-# =========================================================================
-# CONFIGURACIÓN GENERAL DE ALTA VISIBILIDAD (CORREGIDA SIN ERRORES)
-# =========================================================================
-
-# A. ESTILO GENERAL PARA LOS GRÁFICOS (Configuración segura para Plotly global)
-pio.templates.default = "plotly_white"
-
-# Aplicamos los tamaños y fuentes globales (Dejamos las negritas para los gráficos y CSS)
-pio.templates[pio.templates.default].layout.update(
-    title_font=dict(size=24, family="Arial Black, Gadget, sans-serif", color="#000000"),
-    tickfont=dict(size=14, family="Arial", color="#000000"),
-    xaxis=dict(title_font=dict(size=16, family="Arial", color="#000000")),
-    yaxis=dict(title_font=dict(size=16, family="Arial", color="#000000")),
-    legend=dict(
-        font=dict(size=14, family="Arial", color="#000000"),
-        title_font=dict(size=15, family="Arial", color="#000000")
-    )
-)
-
-# B. ESTILO GENERAL PARA LA INTERFAZ DE STREAMLIT (CSS Global - Aquí sí forzamos negritas)
-st.markdown("""
-    <style>
-        /* Títulos e indicadores macro */
-        h1, h2, h3 { font-size: 32px !important; font-weight: 850 !important; color: #000000 !important; }
-        h4, h5, h6 { font-size: 24px !important; font-weight: 750 !important; color: #111111 !important; }
-        
-        /* Texto de sliders, etiquetas, leyendas de Streamlit */
-        p, span, label, .stSlider { font-size: 18px !important; font-weight: 700 !important; color: #000000 !important; }
-        
-        /* Títulos de las pestañas (Tabs) */
-        button[data-baseweb="tab"] p { font-size: 20px !important; font-weight: 800 !important; }
-        
-        /* Tablas / DataFrames numéricos */
-        .styled-table, div[data-testid="stDataFrame"] * { font-size: 16px !important; font-weight: 600 !important; }
-        
-        /* Forzar que los textos de los ejes de Plotly se hereden en negrita si es posible */
-        .xtick text, .ytick text { font-weight: bold !important; }
-    </style>
-""", unsafe_allow_html=True)
 
 # Asegurar la ruta de importaciones locales
 sys.path.insert(0, str(Path(__file__).resolve().parent))
