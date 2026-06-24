@@ -1061,18 +1061,36 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
 
         with tab_est2:
             import plotly.graph_objects as go
+# =========================================================================
+            # 1. CÁLCULO REAL DE LOS DELTAS FILTRADOS POR CATEGORÍA (CORREGIDO)
+            # =========================================================================
+            
+            # --- DIÉSEL ---
+            df_fuel = df_estrat[df_estrat['Classif'] == 'Fuel']
+            gasto_base_fuel = df_fuel[f'Base_{sufijo_kpi_sim}'].sum() if not df_fuel.empty else 0
+            impacto_diesel_usd = gasto_base_fuel * (slider_fuel_pct / 100.0)
 
-            # =========================================================================
-            # 1. CÁLCULO DE LOS DELTAS / IMPACTOS (Para alimentar la Cascada)
-            # =========================================================================
-            # Nota: Si ya calculaste estos impactos más arriba en tu archivo app.py, 
-            # puedes comentar o borrar estas 4 líneas de cálculo.
-            impacto_diesel_usd = tot_kpi_base * (slider_fuel_pct / 100.0)
-            impacto_energia_usd = tot_kpi_base * (slider_power_pct / 100.0)
-            impacto_dolar_usd = tot_kpi_base * (slider_dolar_pct / 100.0)
-            impacto_mano_obra_usd = tot_kpi_base * (slider_labor_pct / 100.0)
+            # --- ENERGÍA ---
+            # Nota: Revisa si en tu Excel se llama 'Energy', 'Power' o 'Energía' y cámbialo aquí
+            df_energia = df_estrat[df_estrat['Classif'] == 'Energy'] 
+            gasto_base_energia = df_energia[f'Base_{sufijo_kpi_sim}'].sum() if not df_energia.empty else 0
+            impacto_energia_usd = gasto_base_energia * (slider_power_pct / 100.0)
 
-            # =========================================================================
+            # --- DÓLAR (TIPO DE CAMBIO) ---
+            # El tipo de cambio suele afectar a los costos indexados en USD o a todo lo importado.
+            # Si afecta a una categoría específica, reemplaza 'FX_Indexed'. Si afecta a todo el 
+            # presupuesto por igual, puedes dejarlo con 'tot_kpi_base'.
+            df_dolar = df_estrat[df_estrat['Classif'] == 'FX_Indexed'] 
+            gasto_base_dolar = df_dolar[f'Base_{sufijo_kpi_sim}'].sum() if not df_dolar.empty else tot_kpi_base
+            impacto_dolar_usd = gasto_base_dolar * (slider_dolar_pct / 100.0)
+
+            # --- MANO DE OBRA ---
+            # Nota: Revisa si en tu Excel se llama 'Labor', 'Mano de Obra' o 'Personnel'
+            df_labor = df_estrat[df_estrat['Classif'] == 'Labor'] 
+            gasto_base_labor = df_labor[f'Base_{sufijo_kpi_sim}'].sum() if not df_labor.empty else 0
+            impacto_labor_usd = gasto_base_labor * (slider_labor_pct / 100.0)
+
+           # =========================================================================
             # 2. CONSTRUCCIÓN DEL GRÁFICO DE CASCADA (Plotly)
             # =========================================================================
             fig_cascada = go.Figure(go.Waterfall(
@@ -1086,14 +1104,15 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                     f"+${impacto_diesel_usd:,.0f}" if impacto_diesel_usd >= 0 else f"-${abs(impacto_diesel_usd):,.0f}",
                     f"+${impacto_energia_usd:,.0f}" if impacto_energia_usd >= 0 else f"-${abs(impacto_energia_usd):,.0f}",
                     f"+${impacto_dolar_usd:,.0f}" if impacto_dolar_usd >= 0 else f"-${abs(impacto_dolar_usd):,.0f}",
-                    f"+${impacto_mano_obra_usd:,.0f}" if impacto_mano_obra_usd >= 0 else f"-${abs(impacto_mano_obra_usd):,.0f}",
+                    f"+${impacto_labor_usd:,.0f}" if impacto_labor_usd >= 0 else f"-${abs(impacto_labor_usd):,.0f}",
                     f"${tot_kpi_simulado:,.0f}"
                 ],
-                y = [tot_kpi_base, impacto_diesel_usd, impacto_energia_usd, impacto_dolar_usd, impacto_mano_obra_usd, tot_kpi_simulado],
+                # Pasamos las nuevas variables corregidas a la coordenada Y
+                y = [tot_kpi_base, impacto_diesel_usd, impacto_energia_usd, impacto_dolar_usd, impacto_labor_usd, tot_kpi_simulado],
                 connector = {"line":{"color":"rgb(63, 63, 63)", "width": 1, "dash": "dot"}},
-                decreasing = {"marker":{"color":"#2a9d8f"}}, # Verde si bajan costos
-                increasing = {"marker":{"color":"#e63946"}}, # Rojo si suben costos
-                totals     = {"marker":{"color":"#1d3557"}}  # Azul corporativo
+                decreasing = {"marker":{"color":"#2a9d8f"}}, 
+                increasing = {"marker":{"color":"#e63946"}}, 
+                totals     = {"marker":{"color":"#1d3557"}}  
             ))
 
             fig_cascada.update_layout(
@@ -1105,10 +1124,10 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 margin=dict(t=50, b=20, l=20, r=20)
             )
             
-            # Desplegamos el gráfico arriba
+            # Desplegar el gráfico corregido
             st.plotly_chart(fig_cascada, use_container_width=True)
             
-            st.write("---") # Línea divisoria visual
+            st.write("---") # Separador visual
 
             # =========================================================================
             # 3. INSPECTOR SEMÁNTICO (Tu código original)
