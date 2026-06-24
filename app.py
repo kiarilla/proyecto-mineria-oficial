@@ -11,6 +11,44 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 
+import plotly.io as pio
+import plotly.express as px
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import plotly.io as pio
+
+# =========================================================================
+# CONFIGURACIÓN GENERAL DE ALTA VISIBILIDAD (Paso 1 y Paso 3 fusionados)
+# =========================================================================
+
+# A. ESTILO GENERAL PARA LOS GRÁFICOS (Plotly global)
+pio.templates.default = "plotly_white"
+pio.templates[pio.templates.default].layout.update(
+    title_font=dict(size=22, family="Arial", color="#000000", weight="bold"),
+    tickfont=dict(size=14, family="Arial", color="#000000", weight="bold"),
+    xaxis=dict(title_font=dict(size=16, family="Arial", color="#000000", weight="bold")),
+    yaxis=dict(title_font=dict(size=16, family="Arial", color="#000000", weight="bold")),
+    legend=dict(
+        font=dict(size=14, family="Arial", color="#000000", weight="bold"),
+        title_font=dict(size=15, family="Arial", color="#000000", weight="bold")
+    )
+)
+
+# B. ESTILO GENERAL PARA LA INTERFAZ DE STREAMLIT (CSS Global)
+st.markdown("""
+    <style>
+        h1, h2, h3 { font-size: 30px !important; font-weight: 800 !important; color: #000000 !important; }
+        h4, h5, h6 { font-size: 22px !important; font-weight: 700 !important; color: #111111 !important; }
+        p, span, label, .stSlider { font-size: 17px !important; font-weight: 600 !important; color: #000000 !important; }
+        button[data-baseweb="tab"] p { font-size: 19px !important; font-weight: 700 !important; }
+        .styled-table, div[data-testid="stDataFrame"] * { font-size: 15px !important; font-weight: 600 !important; }
+    </style>
+""", unsafe_allow_html=True)
+
+# ... (Aquí sigue el resto de tu código normal: cargar el excel, calcular variables, etc.) ...
+
 # Asegurar la ruta de importaciones locales
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
