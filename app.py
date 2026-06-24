@@ -845,6 +845,14 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, val_dolar, step=0.1)
         slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, val_labor, step=0.1)
 
+    # >>> BOTÓN DE RESETEO AGREGADO AQUÍ <<<
+        if st.sidebar.button("🔄 Restablecer Parámetros (0.0%)", use_container_width=True, type="primary"):
+            st.session_state['f_val'] = 0.0
+            st.session_state['p_val'] = 0.0
+            st.session_state['d_val'] = 0.0
+            st.session_state['l_val'] = 0.0
+            st.session_state['escenario_idx'] = 0 # Vuelve a "Manual / Personalizado"
+            st.rerun()
         @st.cache_data
         def cargar_hojas_estratejicas(path):
             return pd.read_excel(path, sheet_name="BUDGET 2024 - 2028"), pd.read_excel(path, sheet_name="BUDGET 2025 - 2029"), pd.read_excel(path, sheet_name="BUDGET 2026 - 2030")
