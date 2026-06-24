@@ -841,19 +841,11 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
 
         st.sidebar.markdown("---")
         st.sidebar.subheader("🎛️ Parámetros de Sensibilidad (%)")
-        # 2. EL TRUCO DE LA LLAVE DINÁMICA (Para forzar el reseteo manual)
-        if 'reset_counter' not in st.session_state:
-            st.session_state['reset_counter'] = 0
         slider_fuel_pct = st.sidebar.slider("Variación Precio Diésel / Combustible", -100.0, 100.0, val_fuel, step=0.1)
         slider_power_pct = st.sidebar.slider("Variación Tarifa Energía Eléctrica", -100.0, 100.0, val_power, step=0.1)
         slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, val_dolar, step=0.1)
         slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, val_labor, step=0.1)
 
-        # 3. EL BOTÓN DE RESETEO REAL
-        if st.sidebar.button("🔄 Restablecer Parámetros (0.0%)", use_container_width=True, type="primary"):
-            # Alteramos el contador para destruir los sliders viejos y crear unos limpios en 0
-            st.session_state['reset_counter'] += 1
-            st.rerun()
         @st.cache_data
         def cargar_hojas_estratejicas(path):
             return pd.read_excel(path, sheet_name="BUDGET 2024 - 2028"), pd.read_excel(path, sheet_name="BUDGET 2025 - 2029"), pd.read_excel(path, sheet_name="BUDGET 2026 - 2030")
