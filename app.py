@@ -1060,6 +1060,59 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 st.plotly_chart(fig_lineas, use_container_width=True, key="grafico__mensual_2027")
 
         with tab_est2:
+            import plotly.graph_objects as go
+
+            # =========================================================================
+            # 1. CÁLCULO DE LOS DELTAS / IMPACTOS (Para alimentar la Cascada)
+            # =========================================================================
+            # Nota: Si ya calculaste estos impactos más arriba en tu archivo app.py, 
+            # puedes comentar o borrar estas 4 líneas de cálculo.
+            impacto_diesel_usd = tot_kpi_base * (slider_fuel_pct / 100.0)
+            impacto_energia_usd = tot_kpi_base * (slider_power_pct / 100.0)
+            impacto_dolar_usd = tot_kpi_base * (slider_dolar_pct / 100.0)
+            impacto_mano_obra_usd = tot_kpi_base * (slider_labor_pct / 100.0)
+
+            # =========================================================================
+            # 2. CONSTRUCCIÓN DEL GRÁFICO DE CASCADA (Plotly)
+            # =========================================================================
+            fig_cascada = go.Figure(go.Waterfall(
+                name = "Puente Presupuestario",
+                orientation = "v",
+                measure = ["absolute", "relative", "relative", "relative", "relative", "total"],
+                x = ["Presupuesto Base", "Efecto Diésel", "Efecto Energía", "Efecto Dólar", "Mano de Obra", "Presupuesto Simulado"],
+                textposition = "outside",
+                text = [
+                    f"${tot_kpi_base:,.0f}", 
+                    f"+${impacto_diesel_usd:,.0f}" if impacto_diesel_usd >= 0 else f"-${abs(impacto_diesel_usd):,.0f}",
+                    f"+${impacto_energia_usd:,.0f}" if impacto_energia_usd >= 0 else f"-${abs(impacto_energia_usd):,.0f}",
+                    f"+${impacto_dolar_usd:,.0f}" if impacto_dolar_usd >= 0 else f"-${abs(impacto_dolar_usd):,.0f}",
+                    f"+${impacto_mano_obra_usd:,.0f}" if impacto_mano_obra_usd >= 0 else f"-${abs(impacto_mano_obra_usd):,.0f}",
+                    f"${tot_kpi_simulado:,.0f}"
+                ],
+                y = [tot_kpi_base, impacto_diesel_usd, impacto_energia_usd, impacto_dolar_usd, impacto_mano_obra_usd, tot_kpi_simulado],
+                connector = {"line":{"color":"rgb(63, 63, 63)", "width": 1, "dash": "dot"}},
+                decreasing = {"marker":{"color":"#2a9d8f"}}, # Verde si bajan costos
+                increasing = {"marker":{"color":"#e63946"}}, # Rojo si suben costos
+                totals     = {"marker":{"color":"#1d3557"}}  # Azul corporativo
+            ))
+
+            fig_cascada.update_layout(
+                title = f"<b>Puente de Variaciones Presupuestarias ({kpi_base_year} vs {kpi_sim_year})</b>",
+                showlegend = False,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                height=450,
+                margin=dict(t=50, b=20, l=20, r=20)
+            )
+            
+            # Desplegamos el gráfico arriba
+            st.plotly_chart(fig_cascada, use_container_width=True)
+            
+            st.write("---") # Línea divisoria visual
+
+            # =========================================================================
+            # 3. INSPECTOR SEMÁNTICO (Tu código original)
+            # =========================================================================
             st.markdown("**Inspector Semántico Activo:** Revisa qué filas específicas han sido modificadas por las elasticidades de tus sliders (filas cuyo factor multiplicador es distinto de 1.0).")
             df_verif = df_estrat[cols_existentes + ['Factor_Estrés_Fila', f'Base_{sufijo_kpi_sim}', f'Final_{sufijo_kpi_sim}']].copy()
             df_verif = df_verif[df_verif['Factor_Estrés_Fila'] != 1.0]
