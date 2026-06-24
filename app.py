@@ -812,6 +812,7 @@ if app_mode == "📊 Forecast Operacional (5+7)":
         st.subheader("Resultados de Backtesting")
         st.dataframe(resultados_backtesting, use_container_width=True, hide_index=True)
 
+Python
 # ============================================================================
 # ============================================================================
 # MÓDULO 2: PROYECCIÓN ESTRATÉGICA QUINQUENAL (2027-2031)
@@ -824,76 +825,51 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
 
         st.sidebar.subheader("🎬 Escenarios Preconfigurados")
         
-        # 1. INICIALIZACIÓN CRÍTICA DEL ESTADO DE LA SESIÓN
+        # Sincronizamos el selectbox con la sesión para poder resetearlo también
+        if 'escenario_idx' not in st.session_state:
+            st.session_state['escenario_idx'] = 0
+
+        escenario = st.sidebar.selectbox(
+            "Seleccione un escenario estratégico:", 
+            ["Manual / Personalizado", "Crisis Global (+Combustible y Dólar)", "Negociación Sindical (+Mano de Obra)", "Eficiencia Operativa (-Costos Generales)"],
+            index=st.session_state['escenario_idx']
+        )
+
+        # Inicializamos los valores por defecto si la sesión está limpia
         if 'f_val' not in st.session_state: st.session_state['f_val'] = 0.0
         if 'p_val' not in st.session_state: st.session_state['p_val'] = 0.0
         if 'd_val' not in st.session_state: st.session_state['d_val'] = 0.0
         if 'l_val' not in st.session_state: st.session_state['l_val'] = 0.0
-        
-        # Guardamos el último escenario seleccionado para detectar cambios reales del usuario
-        if 'last_escenario' not in st.session_state: st.session_state['last_escenario'] = "Manual / Personalizado"
 
-        # Definimos las opciones disponibles
-        opciones_escenarios = [
-            "Manual / Personalizado",
-            "Crisis Global (+Combustible y Dólar)",
-            "Negociación Sindical (+Mano de Obra)",
-            "Eficiencia Operativa (-Costos Generales)"
-        ]
-        
-        # Buscamos el índice correcto basado en lo guardado para que no se desfase el componente visual
-        try:
-            default_index = opciones_escenarios.index(st.session_state['last_escenario'])
-        except ValueError:
-            default_index = 0
-
-        escenario = st.sidebar.selectbox(
-            "Seleccione un escenario estratégico:", 
-            opciones_escenarios,
-            index=default_index
-        )
-
-        # 2. EVALUACIÓN DE CAMBIO DE ESCENARIO (Solo actúa si el usuario cambió el selectbox explícitamente)
-        if escenario != st.session_state['last_escenario']:
-            st.session_state['last_escenario'] = escenario
-            if escenario == "Crisis Global (+Combustible y Dólar)":
-                st.session_state['f_val'], st.session_state['p_val'], st.session_state['d_val'], st.session_state['l_val'] = 25.0, 10.0, 20.0, 5.0
-            elif escenario == "Negociación Sindical (+Mano de Obra)":
-                st.session_state['f_val'], st.session_state['p_val'], st.session_state['d_val'], st.session_state['l_val'] = 5.0, 2.0, 0.0, 18.0
-            elif escenario == "Eficiencia Operativa (-Costos Generales)":
-                st.session_state['f_val'], st.session_state['p_val'], st.session_state['d_val'], st.session_state['l_val'] = -12.0, -5.0, -5.0, -6.0
-            elif escenario == "Manual / Personalizado":
-                st.session_state['f_val'], st.session_state['p_val'], st.session_state['d_val'], st.session_state['l_val'] = 0.0, 0.0, 0.0, 0.0
+        # Si el usuario cambia el selectbox, actualizamos los valores base en la sesión
+        if escenario == "Crisis Global (+Combustible y Dólar)":
+            st.session_state['f_val'], st.session_state['p_val'], st.session_state['d_val'], st.session_state['l_val'] = 25.0, 10.0, 20.0, 5.0
+            st.session_state['escenario_idx'] = 1
+        elif escenario == "Negociación Sindical (+Mano de Obra)":
+            st.session_state['f_val'], st.session_state['p_val'], st.session_state['d_val'], st.session_state['l_val'] = 5.0, 2.0, 0.0, 18.0
+            st.session_state['escenario_idx'] = 2
+        elif escenario == "Eficiencia Operativa (-Costos Generales)":
+            st.session_state['f_val'], st.session_state['p_val'], st.session_state['d_val'], st.session_state['l_val'] = -12.0, -5.0, -5.0, -6.0
+            st.session_state['escenario_idx'] = 3
+        else:
+            st.session_state['escenario_idx'] = 0
 
         st.sidebar.markdown("---")
         st.sidebar.subheader("🎛️ Parámetros de Sensibilidad (%)")
         
-        # 3. CONEXIÓN DIRECTA DE SLIDERS A LA SESIÓN
+        # Los sliders se alimentan y modifican directamente el estado de la sesión
         slider_fuel_pct = st.sidebar.slider("Variación Precio Diésel / Combustible", -100.0, 100.0, key="f_val", step=0.1)
         slider_power_pct = st.sidebar.slider("Variación Tarifa Energía Eléctrica", -100.0, 100.0, key="p_val", step=0.1)
         slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, key="d_val", step=0.1)
         slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, key="l_val", step=0.1)
 
-        # Si el usuario mueve un slider manualmente, cambiamos la etiqueta del selectbox a Manual
-        if (slider_fuel_pct != st.session_state.get('f_val_prev', slider_fuel_pct) or 
-            slider_power_pct != st.session_state.get('p_val_prev', slider_power_pct) or 
-            slider_dolar_pct != st.session_state.get('d_val_prev', slider_dolar_pct) or 
-            slider_labor_pct != st.session_state.get('l_val_prev', slider_labor_pct)):
-            st.session_state['last_escenario'] = "Manual / Personalizado"
-
-        # Guardamos estados de control para el ciclo siguiente
-        st.session_state['f_val_prev'] = slider_fuel_pct
-        st.session_state['p_val_prev'] = slider_power_pct
-        st.session_state['d_val_prev'] = slider_dolar_pct
-        st.session_state['l_val_prev'] = slider_labor_pct
-
-        # 4. BOTÓN DE RESETEO BLINDADO
+        # >>> BOTÓN DE RESETEO AGREGADO AQUÍ <<<
         if st.sidebar.button("🔄 Restablecer Parámetros (0.0%)", use_container_width=True, type="primary"):
             st.session_state['f_val'] = 0.0
             st.session_state['p_val'] = 0.0
             st.session_state['d_val'] = 0.0
             st.session_state['l_val'] = 0.0
-            st.session_state['last_escenario'] = "Manual / Personalizado" # Forzamos el combo box a regresar a Manual
+            st.session_state['escenario_idx'] = 0 # Vuelve a "Manual / Personalizado"
             st.rerun()
         @st.cache_data
         def cargar_hojas_estratejicas(path):
