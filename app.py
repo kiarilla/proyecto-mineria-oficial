@@ -818,52 +818,35 @@ if app_mode == "📊 Forecast Operacional (5+7)":
 # MÓDULO 2: PROYECCIÓN ESTRATÉGICA QUINQUENAL (2027-2031)
 # ============================================================================
 # ============================================================================
-    elif app_mode == "📈 Proyección Estratégica (2027-2031)":
-            st.title("📈 Tablero Interactivo de Proyección Estratégica y KPIs")
-            st.markdown("Modelo de proyección basado en Pronóstico de Consenso Ponderado (2024-2031) con sensibilidad a variables operativas clave.")
 
-    
-            st.sidebar.subheader("🎬 Escenarios Preconfigurados")
-        
-        # Sincronizamos el selectbox con la sesión para poder resetearlo también
-        if 'escenario_idx' not in st.session_state:
-            st.session_state['escenario_idx'] = 0
+elif app_mode == "📈 Proyección Estratégica (2027-2031)":
+        st.title("📈 Tablero Interactivo de Proyección Estratégica y KPIs")
+        st.markdown("Modelo de proyección basado en Pronóstico de Consenso Ponderado (2024-2031) con sensibilidad a variables operativas clave.")
 
-        escenario = st.sidebar.selectbox(
-            "Seleccione un escenario estratégico:", 
-            ["Manual / Personalizado", "Crisis Global (+Combustible y Dólar)", "Negociación Sindical (+Mano de Obra)", "Eficiencia Operativa (-Costos Generales)"],
-            index=st.session_state['escenario_idx']
-        )
+        st.sidebar.subheader("🎬 Escenarios Preconfigurados")
+        escenario = st.sidebar.selectbox("Seleccione un escenario estratégico:", [
+            "Manual / Personalizado",
+            "Crisis Global (+Combustible y Dólar)",
+            "Negociación Sindical (+Mano de Obra)",
+            "Eficiencia Operativa (-Costos Generales)"
+        ])
 
-        # Inicializamos los valores por defecto si la sesión está limpia
-        if 'f_val' not in st.session_state: st.session_state['f_val'] = 0.0
-        if 'p_val' not in st.session_state: st.session_state['p_val'] = 0.0
-        if 'd_val' not in st.session_state: st.session_state['d_val'] = 0.0
-        if 'l_val' not in st.session_state: st.session_state['l_val'] = 0.0
-
-        # Si el usuario cambia el selectbox, actualizamos los valores base en la sesión
+        val_fuel, val_power, val_dolar, val_labor = 0.0, 0.0, 0.0, 0.0
         if escenario == "Crisis Global (+Combustible y Dólar)":
-            st.session_state['f_val'], st.session_state['p_val'], st.session_state['d_val'], st.session_state['l_val'] = 25.0, 10.0, 20.0, 5.0
-            st.session_state['escenario_idx'] = 1
+            val_fuel, val_power, val_dolar, val_labor = 25.0, 10.0, 20.0, 5.0
         elif escenario == "Negociación Sindical (+Mano de Obra)":
-            st.session_state['f_val'], st.session_state['p_val'], st.session_state['d_val'], st.session_state['l_val'] = 5.0, 2.0, 0.0, 18.0
-            st.session_state['escenario_idx'] = 2
+            val_fuel, val_power, val_dolar, val_labor = 5.0, 2.0, 0.0, 18.0
         elif escenario == "Eficiencia Operativa (-Costos Generales)":
-            st.session_state['f_val'], st.session_state['p_val'], st.session_state['d_val'], st.session_state['l_val'] = -12.0, -5.0, -5.0, -6.0
-            st.session_state['escenario_idx'] = 3
-        else:
-            st.session_state['escenario_idx'] = 0
+            val_fuel, val_power, val_dolar, val_labor = -12.0, -5.0, -5.0, -6.0
 
         st.sidebar.markdown("---")
         st.sidebar.subheader("🎛️ Parámetros de Sensibilidad (%)")
-        
-        # Los sliders se alimentan y modifican directamente el estado de la sesión
-        slider_fuel_pct = st.sidebar.slider("Variación Precio Diésel / Combustible", -100.0, 100.0, key="f_val", step=0.1)
-        slider_power_pct = st.sidebar.slider("Variación Tarifa Energía Eléctrica", -100.0, 100.0, key="p_val", step=0.1)
-        slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, key="d_val", step=0.1)
-        slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, key="l_val", step=0.1)
+        slider_fuel_pct = st.sidebar.slider("Variación Precio Diésel / Combustible", -100.0, 100.0, val_fuel, step=0.1)
+        slider_power_pct = st.sidebar.slider("Variación Tarifa Energía Eléctrica", -100.0, 100.0, val_power, step=0.1)
+        slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, val_dolar, step=0.1)
+        slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, val_labor, step=0.1)
 
-        # >>> BOTÓN DE RESETEO AGREGADO AQUÍ <<<
+    # >>> BOTÓN DE RESETEO AGREGADO AQUÍ <<<
         if st.sidebar.button("🔄 Restablecer Parámetros (0.0%)", use_container_width=True, type="primary"):
             st.session_state['f_val'] = 0.0
             st.session_state['p_val'] = 0.0
