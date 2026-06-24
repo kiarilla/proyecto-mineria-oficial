@@ -824,6 +824,8 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         st.markdown("Modelo de proyección basado en Pronóstico de Consenso Ponderado (2024-2031) con sensibilidad a variables operativas clave.")
 
         st.sidebar.subheader("🎬 Escenarios Preconfigurados")
+        if 'reset_counter' not in st.session_state:
+            st.session_state['reset_counter'] = 0
         escenario = st.sidebar.selectbox("Seleccione un escenario estratégico:", [
             "Manual / Personalizado",
             "Crisis Global (+Combustible y Dólar)",
@@ -841,10 +843,19 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
 
         st.sidebar.markdown("---")
         st.sidebar.subheader("🎛️ Parámetros de Sensibilidad (%)")
-        slider_fuel_pct = st.sidebar.slider("Variación Precio Diésel / Combustible", -100.0, 100.0, val_fuel, step=0.1)
-        slider_power_pct = st.sidebar.slider("Variación Tarifa Energía Eléctrica", -100.0, 100.0, val_power, step=0.1)
-        slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, val_dolar, step=0.1)
-        slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, val_labor, step=0.1)
+    
+        # 3. SLIDERS CON LLAVE DINÁMICA SCONECTADA AL CONTADOR
+        slider_fuel_pct = st.sidebar.slider("Variación Precio Diésel / Combustible", -100.0, 100.0, val_fuel, step=0.1, key=f"fuel_{st.session_state['reset_counter']}")
+        slider_power_pct = st.sidebar.slider("Variación Tarifa Energía Eléctrica", -100.0, 100.0, val_power, step=0.1, key=f"power_{st.session_state['reset_counter']}")
+        slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, val_dolar, step=0.1, key=f"dolar_{st.session_state['reset_counter']}")
+        slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, val_labor, step=0.1, key=f"labor_{st.session_state['reset_counter']}")
+
+        # 4. EL BOTÓN DE RESETEO INMUTABLE
+        if st.sidebar.button("🔄 Restablecer Parámetros (0.0%)", use_container_width=True, type="primary"):
+            # Al cambiar este número, cambiamos el nombre de las llaves de TODOS los controles de arriba.
+            # Al cambiar de nombre, Streamlit borra lo viejo y renderiza todo en su estado inicial (0.0).
+            st.session_state['reset_counter'] += 1
+            st.rerun()
 
         @st.cache_data
         def cargar_hojas_estratejicas(path):
