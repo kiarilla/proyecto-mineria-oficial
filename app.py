@@ -1062,72 +1062,61 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         with tab_est2:
             import plotly.graph_objects as go
             import pandas as pd
+            import streamlit as st
 
             st.header("📊 Puente de Variaciones Presupuestarias por Categoría")
-            st.caption("Desglose del impacto financiero real entre el escenario Base y el escenario Simulado por cada cuenta contable.")
+            st.caption("Desglose del impacto financiero real entre el escenario Base de Origen y el escenario Simulado por cada cuenta contable.")
 
             # =========================================================================
-            # 1. PROCESAMIENTO DE DATOS EN TIEMPO REAL (Idéntico al gráfico del profesor)
+            # 1. PROCESAMIENTO DE DATOS EN TIEMPO REAL (Lógica del Profesor)
             # =========================================================================
-            col_base = f'Base_{sufijo_kpi_sim}'
-            col_final = f'Final_{sufijo_kpi_sim}'
+            # Identificamos el sufijo del año origen (Ej: si kpi_base_year es 2024 -> 'FY24')
+            sufijo_base_origen = f"FY{str(kpi_base_year)[-2:]}" 
+            
+            # Verificamos cómo se llama la columna base original en tu Excel
+            col_base_origen = f'Base_{sufijo_base_origen}'
+            if col_base_origen not in df_estrat.columns:
+                col_base_origen = f'Base_{str(kpi_base_year)[-2:]}'
+                if col_base_origen not in df_estrat.columns:
+                    col_base_origen = f'Base_{sufijo_kpi_sim}' # Caída por si acaso si son el mismo año
 
-            # Agrupamos por la columna 'Classif' y sumamos los montos Base y Final
-            df_resumen = df_estrat.groupby('Classif')[[col_base, col_final]].sum().reset_index()
+            # La columna simulada final con los movimientos de los sliders de la Pestaña 1
+            col_final_simulada = f'Final_{sufijo_kpi_sim}'
 
-            # Calculamos la variación neta (Diferencia) para cada categoría
-            df_resumen['Variacion'] = df_resumen[col_final] - df_resumen[col_base]
+            # Agrupamos por la columna 'Classif' para consolidar los montos de todas las cuentas
+            df_resumen = df_estrat.groupby('Classif')[[col_base_origen, col_final_simulada]].sum().reset_index()
 
-            # Ordenamos para que el gráfico sea legible (opcional)
+            # LA CLAVE: Restamos el Año Simulado Final menos el Año Base Origen
+            # Esto garantiza que el gráfico tenga vida desde el inicio (sliders en 0%)
+            df_resumen['Variacion'] = df_resumen[col_final_simulada] - df_resumen[col_base_origen]
+
+            # Ordenamos de mayor a menor impacto para replicar la estructura del profesor
             df_resumen = df_resumen.sort_values(by='Variacion', ascending=False)
 
-            # Preparar las listas para el gráfico de cascada
+            # Calculamos las sumas totales reales para los pilares extremos del gráfico
+            total_inicial_real = df_resumen[col_base_origen].sum()
+            total_final_real = df_resumen[col_final_simulada].sum()
+
+            # =========================================================================
+            # 2. PREPARACIÓN DE LISTAS Y ETIQUETAS PARA PLOTLY
+            # =========================================================================
+            # Definimos los nombres de los ejes (Eje X)
             categorias = [f"Budget {kpi_base_year}"] + df_resumen['Classif'].tolist() + [f"Budget {kpi_sim_year}"]
-            valores = [tot_kpi_base] + df_resumen['Variacion'].tolist() + [tot_kpi_simulado]
             
-            # Definir la medida para Plotly ("absolute" para los pilares, "relative" para los escalones)
+            # Definimos los valores de los saltos de las barras (Eje Y)
+            valores = [total_inicial_real] + df_resumen['Variacion'].tolist() + [total_final_real]
+            
+            # Definimos la medida para la cascada ("absolute" es pilar al suelo, "relative" es flotante)
             medidas = ["absolute"] + ["relative"] * len(df_resumen) + ["total"]
 
-            # Formatear el texto que va arriba de cada barra (en millones para que no sature)
-            texto_barras = [f"${tot_kpi_base/1e6:,.1f}M"]
+            # Formateamos las etiquetas de texto en Millones (M) para que la gráfica no se sature de números largos
+            texto_barras = [f"${total_inicial_real/1e6:,.1f}M"]
             for v in df_resumen['Variacion']:
                 if v >= 0:
                     texto_barras.append(f"+${v/1e6:,.1f}M")
                 else:
                     texto_barras.append(f"-${abs(v)/1e6:,.1f}M")
-            texto_barras.append(f"${tot_kpi_simulado/1e6:,.1f}M")
-
-            # =========================================================================
-            # 2. CONSTRUCCIÓN DEL GRÁFICO DE CASCADA (Estilo solicitado por el profesor)
-            # =========================================================================
-            fig_profe = go.Figure(go.Waterfall(
-                name = "Puente",
-                orientation = "v",
-                measure = medidas,
-                x = categorias,
-                y = valores,
-                text = texto_barras,
-                textposition = "outside",
-                connector = {"line":{"color":"rgb(63, 63, 63)", "width": 1, "dash": "dot"}},
-                decreasing = {"marker":{"color":"#2a9d8f"}}, # Verde si la categoría bajó costos
-                increasing = {"marker":{"color":"#e63946"}}, # Rojo si la categoría subió costos
-                totals     = {"marker":{"color":"#1d3557"}}  # Azul para los totales inicial y final
-            ))
-
-            fig_profe.update_layout(
-                title = f"<b>Bridge: Budget {kpi_base_year} vs Budget {kpi_sim_year} (USD)</b>",
-                showlegend = False,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                height=500,
-                margin=dict(t=80, b=40, l=40, r=40)
-            )
-
-            # Dibujamos el gráfico en Streamlit
-            st.plotly_chart(fig_profe, use_container_width=True)
-
-            st.write("---")
-
+            texto_barras.append(f"${total_final_real/1e6:,.1f}M")
 
             # =========================================================================
             # 3. INSPECTOR SEMÁNTICO (Tu código original)
