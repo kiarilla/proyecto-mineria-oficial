@@ -882,7 +882,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         # 4. Sliders modificados: Rango -100.0 a 100.0, pasos de 0.5 y formato decimal (.1f)
         slider_fuel_pct = st.sidebar.slider("Variación Precio Diésel / Combustible", -100.0, 100.0, step=0.5, format="%.1f%%", key="fuel_pct")
         slider_power_pct = st.sidebar.slider("Energía Eléctrica", -100.0, 100.0, step=0.5, format="%.1f%%", key="power_pct")
-        slider_dolar_pct = st.sidebar.slider("Tipo de Cambio (USD)", -100.0, 100.0, step=0.5, format="%.1f%%", key="dolar_pct")
+        slider_dolar_pct = st.sidebar.slider("Tipo de Cambio (USD)", -50.0, 50.0, step=0.5, format="%.1f%%", key="dolar_pct")
         slider_labor_pct = st.sidebar.slider("Mano de Obra (Labor)", -100.0, 100.0, step=0.5, format="%.1f%%", key="labor_pct")
 
         # 5. Función de Reseteo (Callback)
